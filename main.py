@@ -152,10 +152,10 @@ if __name__ == "__main__":
     AoA_Local = []
 
     # Calculate DFT-codebook - Transmitter
-    F = helpers.codebook(Nbt, Nt)
+    precoder_codebook = helpers.codebook(Nbt, Nt)
 
     # Calculate DFT-codebook - Receiver
-    W = helpers.codebook(Nbr, Nr)
+    combiner_codebook = helpers.codebook(Nbr, Nr)
 
     # Calculate the AoA in the local coordinate system
     for m in range(M):
@@ -163,7 +163,7 @@ if __name__ == "__main__":
 
     # ----------- Prepare the simulation - RL -----------
     # Create the Environment
-    Env = classes.Environment(W, F, Nt, Nr,
+    Env = classes.Environment(combiner_codebook, precoder_codebook, Nt, Nr,
                               r_r, r_t, fc, P_t)
 
     # Create action space
