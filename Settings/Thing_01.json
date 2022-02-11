@@ -1,12 +1,12 @@
 {
     "RUN":              false,
-    "ENGINE":           "octave",
+    "ENGINE":           "MATLAB",
     "FILENAME":         "car_urban_LOS_Fisker",
     "CASE":             "car_urban",
     "scenarios":        ["3GPP_38.901_UMi_LOS"],
     "N":                1900,
     "sample_period":    0.01,
-    "M":                5,
+    "M":                1,
     "rlim":             200,
     "fc":               28e9,
     "P_t":              10000,
@@ -20,7 +20,7 @@
     "dist_res":         8,
     "angle_res":        8,
     "chunksize":        1300,
-    "Episodes":         20,
+    "Episodes":         1,
     "receiver":         {
                         "antennea": 4,
                         "beams": 8

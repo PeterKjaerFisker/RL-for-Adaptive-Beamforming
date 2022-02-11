@@ -7,6 +7,7 @@
 import json
 import sys
 from time import time
+import dill as pickle
 
 import numpy as np
 from tqdm import tqdm
@@ -252,6 +253,19 @@ if __name__ == "__main__":
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
 
+    # %% PICKLE
+    data = {
+        'Agent': Agent,
+        'R_log': R_log,
+        'R_max': R_max_log,
+        'R_min': R_min_log,
+        'R_mean': R_mean_log,
+        'settings': setting
+    }
+
+    with open('results.pickle', 'wb+') as f:
+        # Pickle the 'data' dictionary using the highest protocol available.
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
     # %% PLOT
     print("Starts plotting")
 
