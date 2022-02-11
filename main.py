@@ -4,8 +4,8 @@
          Peter Fisker & Victor Nissen
 """
 # %% Imports
-import sys
 import json
+import sys
 from time import time
 
 import numpy as np
@@ -15,16 +15,6 @@ import classes
 import helpers
 import plots
 
-# %% Global Parameters
-#   RUN = False
-#   ENGINE = "octave"  # "octave" OR "MATLAB"
-#   METHOD = "SARSA"  # "simple", "SARSA" OR "Q-LEARNING"
-#   ADJ = True
-#   ORI = False  # Include the orientiation in the state
-#   DIST = False  # Include the dist in the state
-#   LOCATION = False  # Include location in polar coordinates in the state
-#   FILENAME = "car_urban_LOS_Fisker"  # After the "data_" or "data_pos_"
-#   CASE = "car_urban" # "car_highway"  # "pedestrian" or "car"
 cmd_input = sys.argv
 if len(cmd_input) > 1:
     SETTING = sys.argv[1]
@@ -33,86 +23,47 @@ else:
 
 # %% main
 if __name__ == "__main__":
-    
+
     # Load Settings for simulation    
-    with open(f'Settings/{SETTING}.json','r') as fs:
+    with open(f'Settings/{SETTING}.json', 'r') as fs:
         setting = json.load(fs)
 
     # Load global parameters
-    RUN = setting["RUN"] # Whether new data should be generated regardless of if it already exist
-    ENGINE = setting["ENGINE"] # Engine for QUADRIGA simulation, "MATLAB" or "octave"
-    FILENAME = setting["FILENAME"] # Name of the data file to be loaded or saved
-    CASE = setting["CASE"] # "car_highway", "pedestrian" or "car"
-    
-    # Load simulation paramters
-    scenarios = setting["scenarios"] # Quadriga scenarios, page 101 of Quadriga documenation
-    N = setting["N"] # Number of steps in an episode
-    sample_period = setting["sample_period"] # The sample period in [s]
-    M = setting["M"] # Number of episodes
-    r_lim = setting["rlim"] # Radius of the cell
+    RUN = setting["RUN"]  # Whether new data should be generated regardless of if it already exist
+    ENGINE = setting["ENGINE"]  # Engine for QUADRIGA simulation, "MATLAB" or "octave"
+    FILENAME = setting["FILENAME"]  # Name of the data file to be loaded or saved
+    CASE = setting["CASE"]  # "car_highway", "pedestrian" or "car"
+
+    # ----------- Channel Simulation Parameters -----------
+    scenarios = setting["scenarios"]  # Quadriga scenarios, page 101 of Quadriga documentation
+    N = setting["N"]  # Number of steps in an episode
+    sample_period = setting["sample_period"]  # The sample period in [s]
+    M = setting["M"]  # Number of episodes
+    r_lim = setting["rlim"]  # Radius of the cell
     fc = setting["fc"]  # Center frequency
     P_t = setting["P_t"]  # Transmission power
     lambda_ = 3e8 / fc  # Wave length
-    
-    # Load RL parameters
-    METHOD = setting["METHOD"] # RL table update, "simple", "SARSA" or "Q-LEARNING"
-    ADJ = setting["ADJ"] # Wether action space should be all beams ("False") or adjecent ("True")
-    ORI = setting["ORI"] # Include the orientiation in the state
-    DIST = setting["DIST"] # Include the dist in the state
-    LOCATION = setting["LOCATION"] # Include location in polar coordinates in the state
-    n_actions = setting["n_actions"] # Number of previous actions
-    n_ori = setting["n_ori"] #  Number of previous orinetations
-    dist_res = setting["dist_res"] # Resolution of the distance
-    angle_res = setting["angle_res"] # Resolution of the angle
-    chunksize = setting["chunksize"] # Number of samples taken out
-    Episodes = setting["Episodes"] # Episodes per chunk
+
+    # ----------- Reinforcement Learning Parameters -----------
+    METHOD = setting["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
+    ADJ = setting["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
+    ORI = setting["ORI"]  # Include the orientation in the state
+    DIST = setting["DIST"]  # Include the dist in the state
+    LOCATION = setting["LOCATION"]  # Include location in polar coordinates in the state
+    n_actions = setting["n_actions"]  # Number of previous actions
+    n_ori = setting["n_ori"]  # Number of previous orientations
+    dist_res = setting["dist_res"]  # Resolution of the distance
+    angle_res = setting["angle_res"]  # Resolution of the angle
+    chunksize = setting["chunksize"]  # Number of samples taken out
+    Episodes = setting["Episodes"]  # Episodes per chunk
     Nt = setting["transmitter"]["antennea"]  # Transmitter
     Nr = setting["receiver"]["antennea"]  # Receiver
     Nbt = setting["transmitter"]["beams"]  # Transmitter
     Nbr = setting["receiver"]["beams"]  # Receiver
-    
-        # Load Scenario configuration
+
+    # Load Scenario configuration
     with open(f'Cases/{CASE}.json', 'r') as fp:
         case = json.load(fp)
-
-    
-    # ----------- Extracting variables from case -----------
-    # Number of antennae
-
-
-    # Number of beams
-
-    
-
-    # ----------- Channel Simulation Parameters -----------
-    # Possible scenarios for Quadriga simulations
-    #   scenarios = ['3GPP_38.901_UMi_LOS']  # '3GPP_38.901_UMi_NLOS'
-
-    # Number of steps in a episode
-    #   N = 1900
-
-    # Sample Period [s]
-    #   sample_period = 0.01
-
-    # Number of episodes
-    #   M = 5
-
-    # ----------- Reinforcement Learning Parameters -----------
-    # State parameters
-    #   n_actions = 2
-    #   n_ori = 3
-
-    #   dist_res = 8
-    #   angle_res = 8
-
-    # Chunk size, number of samples taken out.
-    #   chunksize = 1300
-
-    # Number of episodes per chunk
-    #   Episodes = 20
-
-    # Radius for communication range [m]
-    
 
     # ----------- Create the data -----------
     t_start = time()
@@ -226,7 +177,7 @@ if __name__ == "__main__":
         data_idx = np.random.randint(0, N - chunksize) if (N - chunksize) else 0
         path_idx = np.random.randint(0, M)
 
-        # Update the enviroment data
+        # Update the environment data
         Env.update_data(AoA_Local[path_idx][data_idx:data_idx + chunksize],
                         AoD_Global[path_idx][0][data_idx:data_idx + chunksize],
                         coeff[path_idx][0][data_idx:data_idx + chunksize])
@@ -319,7 +270,7 @@ if __name__ == "__main__":
 
     plots.positions(pos_log, r_lim)
 
-    # X-db misallignment probability
+    # X-db misalignment probability
     x_db = 3
     ACC_xdb = helpers.misalignment_prob(np.mean(R_log_db, axis=0),
                                         np.mean(R_max_log_db, axis=0), x_db)
