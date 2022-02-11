@@ -1,17 +1,6 @@
 {
     "case":             "Car_Highway",
     "environment":      "Highway",
-    "rlim":             200,
-    "fc":               28e9,
-    "receiver":         {
-                        "antennea": 4,
-                        "beams": 8
-                        },
-    "transmitter":      {
-                        "antennea": 4,
-                        "beams": 8
-                        },
-    "P_t":              10000,
     "vmax":             37,
     "vmin":             22,
     "vpref":            [30, 33, 37],

@@ -1,17 +1,6 @@
 {
     "case":             "Pedestrian",
     "environment":      "Urban",
-    "rlim":             200,
-    "fc":               28e9,
-    "receiver":         {
-                        "antennea": 4,
-                        "beams": 8
-                        },
-    "transmitter":      {
-                        "antennea": 4,
-                        "beams": 8
-                        },
-    "P_t":              10000,
     "vmax":             2,
     "vmin":             0,
     "vpref":            [0, 0.7, 1.4],
