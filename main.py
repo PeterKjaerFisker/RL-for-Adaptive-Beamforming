@@ -14,7 +14,6 @@ from tqdm import tqdm
 
 import classes
 import helpers
-import plots
 
 cmd_input = sys.argv
 if len(cmd_input) > 1:
@@ -30,15 +29,11 @@ if __name__ == "__main__":
         setting = json.load(fs)
 
     # Load global parameters
-    RUN = setting["RUN"]  # Whether new data should be generated regardless of if it already exist
-    ENGINE = setting["ENGINE"]  # Engine for QUADRIGA simulation, "MATLAB" or "octave"
     FILENAME = setting["FILENAME"]  # Name of the data file to be loaded or saved
     CASE = setting["CASE"]  # "car_highway", "pedestrian" or "car"
 
     # ----------- Channel Simulation Parameters -----------
-    scenarios = setting["scenarios"]  # Quadriga scenarios, page 101 of Quadriga documentation
     N = setting["N"]  # Number of steps in an episode
-    sample_period = setting["sample_period"]  # The sample period in [s]
     M = setting["M"]  # Number of episodes
     r_lim = setting["rlim"]  # Radius of the cell
     fc = setting["fc"]  # Center frequency
@@ -69,9 +64,9 @@ if __name__ == "__main__":
     # ----------- Create the data -----------
     t_start = time()
     # Load or create the data
-    channel_par, pos_log = helpers.get_data(RUN, ENGINE, case,
+    channel_par, pos_log = helpers.get_data(
                                             f"data_pos_{FILENAME}.mat", f"data_{FILENAME}",
-                                            [fc, N, M, r_lim, sample_period, scenarios])
+                                            )
     print(f"Took: {time() - t_start}", flush=True)
 
     # Re-affirm that "M" matches data
@@ -266,37 +261,5 @@ if __name__ == "__main__":
     with open('results.pickle', 'wb+') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-    # %% PLOT
-    print("Starts plotting")
-
-    # Get the Logs in power decibel
-    R_log_db = 10 * np.log10(R_log)
-    R_max_log_db = 10 * np.log10(R_max_log)
-    R_min_log_db = 10 * np.log10(R_min_log)
-    R_mean_log_db = 10 * np.log10(R_mean_log)
-
-    # plots.mean_reward(R_max_log, R_mean_log, R_min_log, R_log,
-    #                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards")
-
-    plots.mean_reward(R_max_log_db, R_mean_log_db, R_min_log_db, R_log_db,
-                      ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
-                      db=True)
-
-    plots.positions(pos_log, r_lim)
-
-    # X-db misalignment probability
-    x_db = 3
-    ACC_xdb = helpers.misalignment_prob(np.mean(R_log_db, axis=0),
-                                        np.mean(R_max_log_db, axis=0), x_db)
-    print(F"{x_db}-db Mis-alignment probability: {ACC_xdb:0.3F} for full length")
-
-    NN = 1000
-    ACC_xdb_NL = helpers.misalignment_prob(np.mean(R_log_db[:, -NN:], axis=0),
-                                           np.mean(R_max_log_db[:, -NN:], axis=0), x_db)
-    print(F"{x_db}-db Mis-alignment probability: {ACC_xdb_NL:0.3F} for the last {NN}")
-
-    ACC_xdb_NF = helpers.misalignment_prob(np.mean(R_log_db[:, 0:NN], axis=0),
-                                           np.mean(R_max_log_db[:, 0:NN], axis=0), x_db)
-    print(F"{x_db}-db Mis-alignment probability: {ACC_xdb_NF:0.3F} for the first {NN}")
 
     print("Done")

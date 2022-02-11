@@ -1,7 +1,7 @@
 {
     "RUN":              false,
     "ENGINE":           "MATLAB",
-    "FILENAME":         "car_urban_LOS_Fisker",
+    "FILENAME":         "no_jitter_Dennis",
     "CASE":             "car_urban",
     "scenarios":        ["3GPP_38.901_UMi_LOS"],
     "N":                1900,

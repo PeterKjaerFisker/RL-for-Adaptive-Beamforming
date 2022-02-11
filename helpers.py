@@ -12,8 +12,6 @@ import numpy as np
 import scipy.io as scio
 
 import classes
-import plots
-
 
 # %% Functions
 def steering_vectors2d(direction, theta, r, lambda_):
@@ -162,7 +160,7 @@ def noisy_ori(ori_vector):
     return new_orientation
 
 
-def get_data(RUN, ENGINE, case, pos_log_name, data_name, para):
+def get_data(pos_log_name, data_name):
     """
     Generates parameters for the channel model.
     Parameters are either loaded from earlier simulations,
@@ -175,104 +173,23 @@ def get_data(RUN, ENGINE, case, pos_log_name, data_name, para):
     :param para: List of simulation settings/parameters used in the simulations
     :return:
     """
-    [fc, N, M, r_lim, sample_period, scenarios] = para
 
     # Load the data
-    if not RUN:
-        try:
-            print("Loading data")
-            pos_log = scio.loadmat("Data_sets/" + pos_log_name)
-            pos_log = pos_log["pos_log"]
+    try:
+        print("Loading data")
+        pos_log = scio.loadmat("Data_sets/" + pos_log_name)
+        pos_log = pos_log["pos_log"]
 
-        except IOError:
-            RUN = True
-            print(f"Datafile {pos_log_name} not found")
+    except IOError:
+        print(f"Datafile {pos_log_name} not found")
+        sys.exit()
+        
+    try:
+        tmp = scio.loadmat("Data_sets/" + data_name)
+        tmp = tmp["output"]
 
-        try:
-            tmp = scio.loadmat("Data_sets/" + data_name)
-            tmp = tmp["output"]
-
-        except IOError:
-            RUN = True
-            print(f"Datafile {data_name} not found")
-
-    if RUN:
-        print("Creating track")
-
-        # Create the class
-        track = classes.Track(case=case, delta_t=sample_period, r_lim=r_lim)
-
-        pos_log_done = False
-        while pos_log_done is False:
-            # Create the tracks
-            pos_log = []
-            for m in range(M):
-                pos_log.append(track.run(N))
-
-            plots.positions(pos_log, r_lim)
-
-            user_input = input("Does the created track(s) look fine (yes/no/stop)")
-            if user_input.lower() == "yes":
-                pos_log_done = True
-            if user_input.lower() == "stop":
-                sys.exit("Program stopped by user")
-
-        print('track done')
-        # Save the data
-        scio.savemat("Data_sets/" + pos_log_name, {"pos_log": pos_log, "scenarios": scenarios})
-
-        if ENGINE == "octave":
-            try:
-                from oct2py import octave
-
-            except ModuleNotFoundError:
-                raise
-
-            except OSError:
-                raise OSError("'octave-cli' hasn't been added to path environment")
-
-            print("Creating new data - octave")
-
-            # Add Quadriga folder to octave path
-            octave.addpath(octave.genpath(f"{os.getcwd()}/Quadriga"))
-
-            # Run the scenario to get the simulated channel parameters
-            if octave.get_data(fc, pos_log_name, data_name, ENGINE):
-                try:
-                    tmp = scio.loadmat("Data_sets/" + data_name)
-                    tmp = tmp["output"]
-                except FileNotFoundError:
-                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
-            else:
-                raise Exception("Something went wrong")
-
-        elif ENGINE == "MATLAB":
-            try:
-                import matlab.engine
-                print("Creating new data - MATLAB")
-
-            except ModuleNotFoundError:
-                raise Exception("You don't have matlab.engine installed")
-
-            # start MATLAB engine
-            eng = matlab.engine.start_matlab()
-
-            # Add Quadriga folder to path
-            eng.addpath(eng.genpath(f"{os.getcwd()}/Quadriga"))
-            if eng.get_data(fc, pos_log_name, data_name, ENGINE):
-                try:
-                    tmp = scio.loadmat("Data_sets/" + data_name)
-                    tmp = tmp["output"]
-
-                except FileNotFoundError:
-                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
-
-            else:
-                raise Exception("Something went wrong")
-
-            eng.quit()
-
-        else:
-            raise Exception("ENGINE name is incorrect")
+    except IOError:
+        print(f"Datafile {data_name} not found")
+        sys.exit()
 
     return tmp, pos_log
