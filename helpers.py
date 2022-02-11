@@ -162,15 +162,9 @@ def noisy_ori(ori_vector):
 
 def get_data(pos_log_name, data_name):
     """
-    Generates parameters for the channel model.
-    Parameters are either loaded from earlier simulations,
-    or generated from Quadriga simulations.
-    Either a MATLAB or Octave engine is used to run simulations.
-    :param RUN: Bool to determine if load from files or run simulation
-    :param ENGINE: Which engine to use for simulations. "MATLAB" or "Octave"
+    Loads parameters from earlier simulations.
     :param pos_log_name: Name of data file containing positions and scenarios eg: "data_pos.mat"
     :param data_name: Name of data file containing parameters/coefficients from simulations eg: "data.mat"
-    :param para: List of simulation settings/parameters used in the simulations
     :return:
     """
 

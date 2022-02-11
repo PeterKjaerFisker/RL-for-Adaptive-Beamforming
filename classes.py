@@ -508,7 +508,7 @@ class Agent:
 
     def UCB(self, state, t):
         """
-        Uses the Upper Bound Confidence method as a policy. See eq. (2.10)
+        Uses the Upper Confidence Bound method as a policy. See eq. (2.10)
         in the book:
         Reinforcement Learning - An introduction.
         Second edition by Richard S. Sutton and Andrew G. Barto
