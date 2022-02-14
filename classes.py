@@ -486,25 +486,33 @@ class Agent:
                    self.action_space[action % N],
                    self.action_space[(action + 1) % N]]
 
-        beam_dir = np.random.choice(actions)
-        r_est = self.Q[state, beam_dir][0]
+        choice = np.random.randint(0, 3)
+        next_action = actions[choice]
+        next_dir = choice - 1
+        r_est = self.Q[state, next_action][0]
 
-        for action in actions:
+        for idx, action in enumerate(actions):
             if self.Q[state, action][0] > r_est:
-                beam_dir = action
+                next_action = action
+                next_dir = idx - 1
                 r_est = self.Q[state, action][0]
 
-        return beam_dir
+        return next_action, next_dir
 
-    def e_greedy_adj(self, state, action):
+    def e_greedy_adj(self, state, last_action):
         if np.random.random() > self.eps:
-            return self.greedy_adj(state, action)
+            next_action, next_dir = self.greedy_adj(state, last_action)
         else:
             N = len(self.action_space)
-            actions = [self.action_space[(action - 1) % N],
-                       self.action_space[action % N],
-                       self.action_space[(action + 1) % N]]
-            return np.random.choice(actions)
+            actions = [self.action_space[(last_action - 1) % N],
+                       self.action_space[last_action % N],
+                       self.action_space[(last_action + 1) % N]]
+
+            choice = np.random.randint(0, 3)
+            next_action = actions[choice]
+            next_dir = choice - 1         # -1 = Left, 0 = Stay, +1 = Right
+
+        return next_action, next_dir
 
     def UCB(self, state, t):
         """

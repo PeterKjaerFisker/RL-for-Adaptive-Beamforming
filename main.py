@@ -220,11 +220,12 @@ if __name__ == "__main__":
             para_action = [next_dist, ori, angle]
             para_next = [next_dist, next_ori, next_angle]
 
-            State.update_state(action, para=para)
 
             if ADJ:
-                action = Agent.e_greedy_adj(State.get_state(para=para), action)
+                State.update_state(action, para=para)
+                action, retning = Agent.e_greedy_adj(State.get_state(para=para), action)
             else:
+                State.update_state(action, para=para)
                 action = Agent.e_greedy(State.get_state(para=para))
 
             R, R_max, R_min, R_mean = Env.take_action(n, action)
