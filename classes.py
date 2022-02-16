@@ -303,9 +303,15 @@ class State:
     def __init__(self, intial_state):
         self.state = intial_state
 
-    def update_state(self, action, para=[None, None, None]):
+    def update_state(self, action, para=[None, None, None], retning = None):
         dist, ori, angle = para
-        state_a = self.state[0][1:]
+        
+        if retning is not None:
+            state_a = self.state[0][1:-1]
+            state_a.append(retning)
+        else:
+            state_a = self.state[0][1:]
+
         state_a.append(action)
 
         if dist is not None:

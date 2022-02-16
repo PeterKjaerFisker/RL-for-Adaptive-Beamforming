@@ -104,10 +104,10 @@ if __name__ == "__main__":
     AoA_Local = []
 
     # Calculate DFT-codebook - Transmitter
-    precoder_codebook = helpers.codebook(Nbt, Nt)
+    precoder_codebook = helpers.codebook_old(Nbt, Nt)
 
     # Calculate DFT-codebook - Receiver
-    combiner_codebook = helpers.codebook(Nbr, Nr)
+    combiner_codebook = helpers.codebook_old(Nbr, Nr)
 
     # Calculate the AoA in the local coordinate system
     for m in range(M):
@@ -185,6 +185,7 @@ if __name__ == "__main__":
 
         # Initiate the action
         action = np.random.choice(action_space)
+        retning = np.random.randint(0,3)-1
 
         end = False
         # Run the episode
@@ -220,9 +221,8 @@ if __name__ == "__main__":
             para_action = [next_dist, ori, angle]
             para_next = [next_dist, next_ori, next_angle]
 
-
             if ADJ:
-                State.update_state(action, para=para)
+                State.update_state(action, para=para, retning=retning)
                 action, retning = Agent.e_greedy_adj(State.get_state(para=para), action)
             else:
                 State.update_state(action, para=para)

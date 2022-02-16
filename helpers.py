@@ -30,8 +30,10 @@ def steering_vectors2d(direction, theta, r, lambda_):
     e = direction * np.matrix([np.cos(theta), np.sin(theta)])
     return np.exp(-2j * (np.pi / lambda_) * e.T @ r)
 
+def steer_vec(N, angle):
+    return (1/np.sqrt(N))*np.exp(1j*np.pi*np.arange(N)*angle)
 
-def codebook(Nb, N):
+def codebook_old(Nb, N):
     """
     Calculates the codebook based on the number of antennae and beams
     :param Nb: Number of beams
@@ -43,6 +45,53 @@ def codebook(Nb, N):
         Cb[n, :] = ((1 / np.sqrt(N)) * np.exp(-1j * np.pi * np.arange(N) * ((2 * n - Nb) / (Nb))))
 
     return Cb
+
+def codebook_new(N, k):
+    """
+    Calculates the codebook based on the number of antennae and beams
+    :param Nb: Number of beams
+    :param N: Number of antennae
+    :return: Codebook matrix
+    """
+
+    codeword = np.zeros(N, dtype=np.complex64)
+
+    if np.ceil(np.log2(N)) != np.floor(np.log2(N)):
+        raise Exception("N not a power of 2")
+
+    N_codeword = 2**(k+1)-2
+
+    codebook = np.zeros((N_codeword,N), dtype=np.complex64)
+
+    for i in range(1,k+1):
+        l = np.log2(N)-i
+        M = int(2**(np.floor((l+1)/2)))
+        Ns = int(N/M)
+        
+        if l % 2:
+            Na = M/2
+        else:
+            Na = M
+
+        for m in range(1, M + 1):
+            if m <= Na:
+                fm = np.exp(-1j*m*((Ns-1)/Ns)*np.pi)*steer_vec(Ns, (-1+((2*m-1)/Ns)))
+                 
+            else:
+                fm = np.zeros(Ns)
+                
+            codeword[(m-1)*Ns:m*Ns] = fm
+            
+        
+        codebook[(2**i)-2,:] = codeword
+
+        for n in range(2,2**i+1):
+            codebook[(2**i)-3+n,:] = codeword * (np.sqrt(N)*steer_vec(N, 2*(n-1)/(2**i)))
+            
+    for idx,row in enumerate(codebook):
+        codebook[idx,:] = row*1/np.linalg.norm(row)
+        
+    return codebook
 
 
 def codebook_layer(Nb, N):
