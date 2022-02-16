@@ -94,6 +94,7 @@ def directivity(W, N, title):
             beam[j, i] = np.abs(np.conjugate(W[j, :]).T @ A)
 
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    ax.set_yticklabels([])
     ax.set_title(title)
     for j in range(len(W)):
         # Calculate the angle with max gain for each code-page.
@@ -101,9 +102,6 @@ def directivity(W, N, title):
 
         # Plot the gain
         ax.plot(Theta, beam[j, :], label=f"{j}")
-        ax.vlines(max_angle, 0, np.max(beam[j, :]),
-                  colors='r', linestyles="dashed",
-                  alpha=0.4)
 
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),
               ncol=4)
