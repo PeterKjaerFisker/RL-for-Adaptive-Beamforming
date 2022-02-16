@@ -48,9 +48,11 @@ def codebook_old(Nb, N):
 
 def codebook_new(N, k):
     """
-    Calculates the codebook based on the number of antennae and beams
-    :param Nb: Number of beams
+    Calculates the codebook based on the number of antennae and number of layers
+    The bottom layer always has 2 beams, and the number of beams in each layer
+    increases with a factor of 2
     :param N: Number of antennae
+    :param k: Number of layers
     :return: Codebook matrix
     """
 
