@@ -31,6 +31,12 @@ def steering_vectors2d(direction, theta, r, lambda_):
     return np.exp(-2j * (np.pi / lambda_) * e.T @ r)
 
 def steer_vec(N, angle):
+    """
+    Calculates steering vector for use in codebook_new, note that these codebooks don't use
+    angles in radians, but cos(angle) and only for a ULA
+    :param N: Number of antennas in the ULA
+    :param angle: The normalized angle in [-1;1]
+    """
     return (1/np.sqrt(N))*np.exp(1j*np.pi*np.arange(N)*angle)
 
 def codebook_old(Nb, N):
