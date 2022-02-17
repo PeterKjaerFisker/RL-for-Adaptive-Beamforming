@@ -17,16 +17,17 @@
     "LOCATION":         false,
     "n_actions":        3,
     "n_ori":            3,
+    "ori_res":          8,
     "dist_res":         8,
     "angle_res":        8,
     "chunksize":        1300,
     "Episodes":         1,
     "receiver":         {
-                        "antennea": 4,
-                        "beams": 8
+                        "antennea": 8,
+                        "layers": 3
                         },
     "transmitter":      {
-                        "antennea": 4,
-                        "beams": 8
+                        "antennea": 32,
+                        "layers": 4
                         }
 }

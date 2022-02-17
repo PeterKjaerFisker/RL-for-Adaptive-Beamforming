@@ -98,7 +98,7 @@ def directivity(W, N, title):
     ax.set_title(title)
     for j in range(len(W)):
         # Calculate the angle with max gain for each code-page.
-        max_angle = np.pi - np.arccos(np.angle(W[j, 1]) / np.pi)
+        #max_angle = np.pi - np.arccos(np.angle(W[j, 1]) / np.pi)
 
         # Plot the gain
         ax.plot(Theta, beam[j, :], label=f"{j}")

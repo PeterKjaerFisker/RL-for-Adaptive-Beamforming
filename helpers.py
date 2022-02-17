@@ -16,7 +16,7 @@ import plots
 
 
 # %% Functions
-def steering_vectors2d(direction, theta, r, lambda_):
+def steering_vectors2d(direction, theta, N, lambda_):
     """
     Calculates the steering vector for a Standard ULA, with given antenna positions
     wave length and angles.
@@ -27,8 +27,21 @@ def steering_vectors2d(direction, theta, r, lambda_):
     :param lambda_: Wave length of carrier wave in meters
     :return: Array steering vector
     """
-    e = direction * np.matrix([np.cos(theta), np.sin(theta)])
-    return np.exp(-2j * (np.pi / lambda_) * e.T @ r)
+    
+    r = np.zeros((2, N))
+    r[0, :] = np.linspace(0, (N - 1) * lambda_ / 2, N)
+
+
+    if isinstance(theta, np.ndarray):
+        e = direction * np.matrix([np.cos(theta), np.sin(theta)])
+        result = np.exp(-2j * (np.pi / lambda_) * e.T @ r)
+    elif isinstance(theta, float):
+        e = direction * np.array([[np.cos(theta), np.sin(theta)]])
+        result = np.exp(-2j * (np.pi / lambda_) * e @ r)
+    else:
+        raise Exception("Theta is not an array or an ")
+    
+    return result
 
 def steer_vec(N, angle):
     """
@@ -52,7 +65,7 @@ def codebook_old(Nb, N):
 
     return Cb
 
-def codebook_new(N, k):
+def codebook_new(N, k, lambda_):
     """
     Calculates the codebook based on the number of antennae and number of layers
     The bottom layer always has 2 beams, and the number of beams in each layer
@@ -83,7 +96,7 @@ def codebook_new(N, k):
 
         for m in range(1, M + 1):
             if m <= Na:
-                fm = np.exp(-1j*m*((Ns-1)/Ns)*np.pi)*steer_vec(Ns, (-1+((2*m-1)/Ns)))
+                fm = np.exp(-1j*m*((Ns-1)/Ns)*np.pi)*steering_vectors2d(1, np.arccos((((-1+((2*m-1)/Ns))+1) % 2)-1), Ns, lambda_)
                  
             else:
                 fm = np.zeros(Ns)
@@ -94,7 +107,7 @@ def codebook_new(N, k):
         codebook[(2**i)-2,:] = codeword
 
         for n in range(2,2**i+1):
-            codebook[(2**i)-3+n,:] = codeword * (np.sqrt(N)*steer_vec(N, 2*(n-1)/(2**i)))
+            codebook[(2**i)-3+n,:] = codeword * (np.sqrt(N)*steering_vectors2d(1, np.arccos((((2*(n-1)/(2**i))+1) % 2)-1), N, lambda_))
             
     for idx,row in enumerate(codebook):
         codebook[idx,:] = row*1/np.linalg.norm(row)
