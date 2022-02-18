@@ -490,7 +490,7 @@ class Agent:
         N = len(self.action_space)
         
         
-        lag = np.floor(np.log2(action+2)) # Wrap around for left/right
+        lag = int(np.floor(np.log2(action+2))) # Wrap around for left/right
         if lag == int(np.floor(np.log2(action+3))):
             action_Right = action + 1
         else:
@@ -502,30 +502,19 @@ class Agent:
             action_Left = int((action*2)+1)
         
         # Limits the agent to taking appropriate actions
-        # TODO should probably be un sausageified
-        if int(np.floor(np.log2(action+2))) == 1:
-            actions = [self.action_space[action], # Stay
-                       self.action_space[action_Right], # Right
-                       self.action_space[action_Left], # Left
-                       self.action_space[int((action*2)+3)], # Up Right
-                       self.action_space[int((action*2)+2)]] # Up Left
-            Nchoices = 5
-        elif int(np.floor(np.log2(action+2))) == Nlayers:
-            actions = [self.action_space[action], # Stay
-                       self.action_space[action_Right], # Right
-                       self.action_space[action_Left], # Left
-                       self.action_space[int(np.floor((action-2)/2))]] # Down
-            Nchoices = 4
-        else:
-            actions = [self.action_space[action], # Stay
-                       self.action_space[action_Right], # Right
-                       self.action_space[action_Left], # Left
-                       self.action_space[int(np.floor((action-2)/2))], # Down
-                       self.action_space[int((action*2)+3)], # Up Right
-                       self.action_space[int((action*2)+2)]] # Up Left
-            Nchoices = 6
-        # TODO actions should be limited by which layer the agent is in
+        actions = [self.action_space[action], # Stay
+                   self.action_space[action_Right], # Right
+                   self.action_space[action_Left]] # Left
+        Nchoices = 3
         
+        if lag != 1: # Check if on bottom layer
+            actions.append(self.action_space[int(np.floor((action-2)/2))]) # Down
+            Nchoices += 1
+            
+        if lag != Nlayers: # Check if on uppermost layer
+            actions.append(self.action_space[int((action*2)+3)]) # Up Right
+            actions.append(self.action_space[int((action*2)+2)]) # Up Left
+            Nchoices += 2
 
         choice = np.random.randint(0, Nchoices)
         next_action = actions[choice]
@@ -559,30 +548,19 @@ class Agent:
                 action_Left = int((last_action*2)+1)
             
             # Limits the agent to taking appropriate actions
-            # TODO should probably be un sausageified
-            if int(np.floor(np.log2(last_action+2))) == 1:
-                actions = [self.action_space[last_action], # Stay
-                           self.action_space[action_Right], # Right
-                           self.action_space[action_Left], # Left
-                           self.action_space[int((last_action*2)+3)], # Up Right
-                           self.action_space[int((last_action*2)+2)]] # Up Left
-                Nchoices = 5
-            elif int(np.floor(np.log2(last_action+2))) == Nlayers: 
-                actions = [self.action_space[last_action], # Stay
-                           self.action_space[action_Right], # Right
-                           self.action_space[action_Left], # Left
-                           self.action_space[int(np.floor((last_action-2)/2))]] # Down
-                Nchoices = 4
-            else:
-                actions = [self.action_space[last_action], # Stay
-                           self.action_space[action_Right], # Right
-                           self.action_space[action_Left], # Left
-                           self.action_space[int(np.floor((last_action-2)/2))], # Down
-                           self.action_space[int((last_action*2)+3)], # Up Right
-                           self.action_space[int((last_action*2)+2)]] # Up Left
-                Nchoices = 6
+            actions = [self.action_space[last_action], # Stay
+                       self.action_space[action_Right], # Right
+                       self.action_space[action_Left]] # Left
+            Nchoices = 3
             
-                       
+            if lag != 1: # Check if on bottom layer
+                actions.append(self.action_space[int(np.floor((last_action-2)/2))]) # Down
+                Nchoices += 1
+                
+            if lag != Nlayers: # Check if on uppermost layer
+                actions.append(self.action_space[int((last_action*2)+3)]) # Up Right
+                actions.append(self.action_space[int((last_action*2)+2)]) # Up Left
+                Nchoices += 2
 
             choice = np.random.randint(0, Nchoices)
             next_action = actions[choice]
