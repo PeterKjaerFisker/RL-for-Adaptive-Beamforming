@@ -496,7 +496,7 @@ class Agent:
         else:
             action_Right = int((action-1)/2)
             
-        if lag == np.floor(np.log2(action+1)):
+        if lag == int(np.floor(np.log2(action+1))):
             action_Left = action - 1
         else:
             action_Left = int((action*2)+1)
@@ -505,26 +505,34 @@ class Agent:
         actions = [self.action_space[action], # Stay
                    self.action_space[action_Right], # Right
                    self.action_space[action_Left]] # Left
-        Nchoices = 3
         
-        if lag != 1: # Check if on bottom layer
-            actions.append(self.action_space[int(np.floor((action-2)/2))]) # Down
-            Nchoices += 1
+        if lag != 1 and lag != Nlayers:
+                actions.append(self.action_space[int(np.floor((action-2)/2))]) # Down
+                actions.append(self.action_space[int((action*2)+3)]) # Up Right
+                actions.append(self.action_space[int((action*2)+2)]) # Up Left
+                
+                dir_list = [0, 1, 2, 3, 4, 5]
             
-        if lag != Nlayers: # Check if on uppermost layer
+        elif lag != 1: # Check if on bottom layer
+            actions.append(self.action_space[int(np.floor((action-2)/2))]) # Down
+                
+            dir_list = [0, 1, 2, 3]
+                
+        else: # lag != Nlayers: # Check if on uppermost layer
             actions.append(self.action_space[int((action*2)+3)]) # Up Right
             actions.append(self.action_space[int((action*2)+2)]) # Up Left
-            Nchoices += 2
+                
+            dir_list = [0, 1, 2, 4, 5]
 
-        choice = np.random.randint(0, Nchoices)
+        choice = np.random.randint(0, len(dir_list))
         next_action = actions[choice]
-        next_dir = choice
+        next_dir = dir_list[choice]
         r_est = self.Q[state, next_action][0]
 
         for idx, action in enumerate(actions):
             if self.Q[state, action][0] > r_est:
                 next_action = action
-                next_dir = idx - 1
+                next_dir = dir_list[choice]
                 r_est = self.Q[state, action][0]
 
         return next_action, next_dir
@@ -542,7 +550,7 @@ class Agent:
             else:
                 action_Right = int((last_action-1)/2)
                 
-            if lag == np.floor(np.log2(last_action+1)):
+            if lag == int(np.floor(np.log2(last_action+1))):
                 action_Left = last_action - 1
             else:
                 action_Left = int((last_action*2)+1)
@@ -551,20 +559,28 @@ class Agent:
             actions = [self.action_space[last_action], # Stay
                        self.action_space[action_Right], # Right
                        self.action_space[action_Left]] # Left
-            Nchoices = 3
             
-            if lag != 1: # Check if on bottom layer
+            if lag != 1 and lag != Nlayers:
                 actions.append(self.action_space[int(np.floor((last_action-2)/2))]) # Down
-                Nchoices += 1
-                
-            if lag != Nlayers: # Check if on uppermost layer
                 actions.append(self.action_space[int((last_action*2)+3)]) # Up Right
                 actions.append(self.action_space[int((last_action*2)+2)]) # Up Left
-                Nchoices += 2
+                
+                dir_list = [0, 1, 2, 3, 4, 5]
+            
+            elif lag != 1: # Check if on bottom layer
+                actions.append(self.action_space[int(np.floor((last_action-2)/2))]) # Down
+                
+                dir_list = [0, 1, 2, 3]
+                
+            else: # lag != Nlayers: # Check if on uppermost layer
+                actions.append(self.action_space[int((last_action*2)+3)]) # Up Right
+                actions.append(self.action_space[int((last_action*2)+2)]) # Up Left
+                
+                dir_list = [0, 1, 2, 4, 5]
 
-            choice = np.random.randint(0, Nchoices)
+            choice = np.random.randint(0, len(dir_list))
             next_action = actions[choice]
-            next_dir = choice         # TODO NO LONGER VALID -1 = Left, 0 = Stay, +1 = Right
+            next_dir = dir_list[choice]         # TODO NO LONGER VALID -1 = Left, 0 = Stay, +1 = Right
 
         return next_action, next_dir
 
