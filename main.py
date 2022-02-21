@@ -92,24 +92,14 @@ if __name__ == "__main__":
 
     # ----------- Prepare the simulation - Channel -----------
     print("Starts calculating", flush=True)
-    # Make ULA antenna positions - Transmitter
-    #r_r = np.zeros((2, Nr))
-    #r_r[0, :] = np.linspace(0, (Nr - 1) * lambda_ / 2, Nr)
-
-    # Make ULA antenna positions - Receiver
-    #r_t = np.zeros((2, Nt))
-    #r_t[0, :] = np.linspace(0, (Nt - 1) * lambda_ / 2, Nt)
 
     # Preallocate empty arrays
     AoA_Local = []
 
     # Calculate DFT-codebook - Transmitter
     precoder_codebook = helpers.codebook_new(Nt, Nlt, lambda_)
-    
-    
 
     # Calculate DFT-codebook - Receiver
-    #combiner_codebook = helpers.codebook_old(Nbr, Nr)
     combiner_codebook = helpers.codebook_new(Nr,Nlr,lambda_)
     
 
@@ -123,7 +113,6 @@ if __name__ == "__main__":
                               fc, P_t)
 
     # Create action space
-    #action_space = np.arange(Nbr) # LAV DENNE ACTION SPACE OM SÅ DEN PASSER TIL CODEBOOK
     action_space = np.arange(Nbeam_tot)
 
     # Create the discrete orientation if ORI is true
@@ -191,6 +180,8 @@ if __name__ == "__main__":
         # Initiate the action
         action = np.random.choice(action_space)
         retning = np.random.randint(0,3)-1
+        
+        action, retning = Agent.greedy_adj()
         # TODO første action skal afhænge af initial state
 
         end = False
@@ -281,9 +272,16 @@ if __name__ == "__main__":
     R_max_log_db = 10 * np.log10(R_max_log)
     R_min_log_db = 10 * np.log10(R_min_log)
     R_mean_log_db = 10 * np.log10(R_mean_log)
+    #Misalignment_log_dB = R_max_log_db - R_log_db
+    Misalignment_log_dB = R_log_db - R_max_log_db
+    Meanalignment_log_dB = R_mean_log_db - R_max_log_db
+    Minalignment_log_dB = R_min_log_db - R_max_log_db
 
     # plots.mean_reward(R_max_log, R_mean_log, R_min_log, R_log,
     #                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards")
+
+    plots.ECDF(np.mean(Misalignment_log_dB, axis=0))
+    plots.Relative_reward(np.mean(Misalignment_log_dB, axis=0), np.mean(Meanalignment_log_dB, axis=0), np.mean(Minalignment_log_dB,axis=0))
 
     plots.mean_reward(R_max_log_db, R_mean_log_db, R_min_log_db, R_log_db,
                       ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",

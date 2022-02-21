@@ -11,6 +11,27 @@ import numpy as np
 
 # %% Functions
 
+def ECDF(data):
+    data_len = len(data)
+    data_sorted = np.sort(data)
+    y = np.arange(data_len)/float(data_len)
+    plt.figure()
+    plt.title("x-dB Mis-alignment probability - ECDF")
+    plt.plot(data_sorted,y)
+    plt.xlabel("x-dB Mis-alignment")
+    plt.ylabel("Probability")
+    plt.show()
+
+def Relative_reward(mis_data, mis_mean, mis_min):
+    plt.figure()
+    plt.title("Relative difference - dB")
+    plt.plot(mis_min, label="R_min")
+    plt.plot(mis_data, label="R")
+    plt.plot(mis_mean, label="R_mean")
+    plt.legend()
+    plt.xlabel("Number of Steps")
+    plt.ylabel("Normalized reward")
+    plt.show
 
 def n_lastest_scatter(y1, y2, N, labels, title,
                       x1=None, x2=None, marker=None):

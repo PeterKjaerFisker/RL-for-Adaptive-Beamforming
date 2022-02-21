@@ -260,8 +260,6 @@ class Environment():
         self.F = F
         self.Nt = Nt
         self.Nr = Nr
-        #self.r_t = r_t
-        #self.r_r = r_r
         self.lambda_ = 3e8 / fc
         self.P_t = P_t
 
@@ -500,28 +498,28 @@ class Agent:
             action_Left = action - 1
         else:
             action_Left = int((action*2)+1)
-        
+
         # Limits the agent to taking appropriate actions
         actions = [self.action_space[action], # Stay
                    self.action_space[action_Right], # Right
                    self.action_space[action_Left]] # Left
-        
+
         if lag != 1 and lag != Nlayers:
                 actions.append(self.action_space[int(np.floor((action-2)/2))]) # Down
                 actions.append(self.action_space[int((action*2)+3)]) # Up Right
                 actions.append(self.action_space[int((action*2)+2)]) # Up Left
-                
+
                 dir_list = [0, 1, 2, 3, 4, 5]
-            
+
         elif lag != 1: # Check if on bottom layer
             actions.append(self.action_space[int(np.floor((action-2)/2))]) # Down
-                
+
             dir_list = [0, 1, 2, 3]
-                
-        else: # lag != Nlayers: # Check if on uppermost layer
+
+        else: # Check if on uppermost layer
             actions.append(self.action_space[int((action*2)+3)]) # Up Right
             actions.append(self.action_space[int((action*2)+2)]) # Up Left
-                
+
             dir_list = [0, 1, 2, 4, 5]
 
         choice = np.random.randint(0, len(dir_list))
@@ -572,7 +570,7 @@ class Agent:
                 
                 dir_list = [0, 1, 2, 3]
                 
-            else: # lag != Nlayers: # Check if on uppermost layer
+            else: # Check if on uppermost layer
                 actions.append(self.action_space[int((last_action*2)+3)]) # Up Right
                 actions.append(self.action_space[int((last_action*2)+2)]) # Up Left
                 
