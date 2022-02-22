@@ -1,3 +1,8 @@
 .idea/
 __pycache__/
 *.asv
+Test.py
+results.pickle
+Mean Rewards db.pdf
+results.pickle
+Mean Rewards db.pdf

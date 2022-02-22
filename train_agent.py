@@ -48,14 +48,16 @@ if __name__ == "__main__":
     LOCATION = setting["LOCATION"]  # Include location in polar coordinates in the state
     n_actions = setting["n_actions"]  # Number of previous actions
     n_ori = setting["n_ori"]  # Number of previous orientations
+    ori_res = setting["ori_res"] # Resolution of the orientation
     dist_res = setting["dist_res"]  # Resolution of the distance
     angle_res = setting["angle_res"]  # Resolution of the angle
     chunksize = setting["chunksize"]  # Number of samples taken out
     Episodes = setting["Episodes"]  # Episodes per chunk
     Nt = setting["transmitter"]["antennea"]  # Transmitter
     Nr = setting["receiver"]["antennea"]  # Receiver
-    Nbt = setting["transmitter"]["beams"]  # Transmitter
-    Nbr = setting["receiver"]["beams"]  # Receiver
+    Nlt = setting["transmitter"]["layers"]  # Transmitter
+    Nlr = setting["receiver"]["layers"]  # Receiver
+    Nbeam_tot = (2**(Nlr+1))-2 # Total number of beams for the receiver
 
     # Load Scenario configuration
     with open(f'Cases/{CASE}.json', 'r') as fp:
@@ -83,24 +85,16 @@ if __name__ == "__main__":
 
     # ----------- Prepare the simulation - Channel -----------
     print("Starts calculating", flush=True)
-    # Make ULA antenna positions - Transmitter
-    r_r = np.zeros((2, Nr))
-    r_r[0, :] = np.linspace(0, (Nr - 1) * lambda_ / 2, Nr)
-
-    # Make ULA antenna positions - Receiver
-    r_t = np.zeros((2, Nt))
-    r_t[0, :] = np.linspace(0, (Nt - 1) * lambda_ / 2, Nt)
 
     # Preallocate empty arrays
-    beam_t = np.zeros((M, N))
-    beam_r = np.zeros((M, N))
     AoA_Local = []
 
     # Calculate DFT-codebook - Transmitter
-    precoder_codebook = helpers.codebook(Nbt, Nt)
+    precoder_codebook = helpers.codebook_new(Nt, Nlt, lambda_)
 
     # Calculate DFT-codebook - Receiver
-    combiner_codebook = helpers.codebook(Nbr, Nr)
+    combiner_codebook = helpers.codebook_new(Nr,Nlr,lambda_)
+    
 
     # Calculate the AoA in the local coordinate system
     for m in range(M):
@@ -109,16 +103,16 @@ if __name__ == "__main__":
     # ----------- Prepare the simulation - RL -----------
     # Create the Environment
     Env = classes.Environment(combiner_codebook, precoder_codebook, Nt, Nr,
-                              r_r, r_t, fc, P_t)
+                              fc, P_t)
 
     # Create action space
-    action_space = np.arange(Nbr)
+    action_space = np.arange(Nbeam_tot)
 
     # Create the discrete orientation if ORI is true
     if ORI:
         ori_discrete = np.zeros([M, N])
         for m in range(M):
-            ori_discrete[m, :] = helpers.discrete_ori(Orientation[m][0][2, :], Nbr)
+            ori_discrete[m, :] = helpers.discrete_ori(Orientation[m][0][2, :], ori_res)
     else:
         ori_discrete = None
 
@@ -143,12 +137,14 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
+    Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
+
     for episode in tqdm(range(Episodes), desc="Episodes"):
         # Create the Agent
-        Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
+        # Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
 
         # Initiate the State at a random beam sequence
-        State_tmp = [list(np.random.randint(0, Nbr, n_actions))]
+        State_tmp = [list(np.random.randint(0, Nbeam_tot, n_actions))]
 
         if DIST or LOCATION:
             State_tmp.append(list([dist_discrete[0]]))
@@ -156,7 +152,7 @@ if __name__ == "__main__":
             State_tmp.append(["N/A"])
 
         if ORI:
-            State_tmp.append(list(np.random.randint(0, Nbr, n_ori)))
+            State_tmp.append(list(np.random.randint(0, ori_res, n_ori)))
         else:
             State_tmp.append(["N/A"])
 
@@ -168,8 +164,8 @@ if __name__ == "__main__":
         State = classes.State(State_tmp)
 
         # Choose data
-        data_idx = np.random.randint(0, N - chunksize) if (N - chunksize) else 0
         path_idx = np.random.randint(0, M)
+        data_idx = np.random.randint(0, N - chunksize) if (N - chunksize) else 0
 
         # Update the environment data
         Env.update_data(AoA_Local[path_idx][data_idx:data_idx + chunksize],
@@ -178,6 +174,9 @@ if __name__ == "__main__":
 
         # Initiate the action
         action = np.random.choice(action_space)
+        retning = np.random.randint(0,3)-1
+
+        # TODO første action skal afhænge af initial state
 
         end = False
         # Run the episode
@@ -213,11 +212,11 @@ if __name__ == "__main__":
             para_action = [next_dist, ori, angle]
             para_next = [next_dist, next_ori, next_angle]
 
-            State.update_state(action, para=para)
-
             if ADJ:
-                action = Agent.e_greedy_adj(State.get_state(para=para), action)
+                State.update_state(action, para=para, retning=retning)
+                action, retning = Agent.e_greedy_adj(State.get_state(para=para), action, Nlr)
             else:
+                State.update_state(action, para=para)
                 action = Agent.e_greedy(State.get_state(para=para))
 
             R, R_max, R_min, R_mean = Env.take_action(n, action)
@@ -227,7 +226,7 @@ if __name__ == "__main__":
             elif METHOD == "SARSA":
                 if ADJ:
                     next_action = Agent.e_greedy_adj(State.get_nextstate(action,
-                                                                         para_next=para_action), action)
+                                                                         para_next=para_action), action, Nlr)
                 else:
                     next_action = Agent.e_greedy(State.get_nextstate(action,
                                                                      para_next=para_action))
@@ -235,7 +234,7 @@ if __name__ == "__main__":
                                    next_action,
                                    para_next=para_next, end=end)
             else:
-                Agent.update_Q_learning(R, State, action,
+                Agent.update_Q_learning(R, State, action, Nlr,
                                         para_next=para_next,
                                         adj=ADJ, end=end)
                 METHOD = "Q-LEARNING"
@@ -246,7 +245,7 @@ if __name__ == "__main__":
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
 
-    # %% PICKLE
+    # %% Save pickle
     data = {
         'Agent': Agent,
         'R_log': R_log,
@@ -255,9 +254,66 @@ if __name__ == "__main__":
         'R_mean': R_mean_log,
         'settings': setting
     }
+    
+    helpers.dump_pickle(data,'','_results.pickle')
 
-    with open('results.pickle', 'wb+') as f:
-        # Pickle the 'data' dictionary using the highest protocol available.
-        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    # %% Load pickle
+    
+    data = helpers.load_pickle('','_results.pickle')
+    Agent = data['Agent']
+    R_log = data['R_log']
+    R_max_log = data['R_max']
+    R_min_log = data['R_min']
+    R_mean_log = data['R_mean']
+    setting = data['settings']
+
+    # %% PLOT
+    print("Starts plotting")
+
+    # Get the Logs in power decibel
+    R_log_db = 10 * np.log10(R_log)
+    R_max_log_db = 10 * np.log10(R_max_log)
+    R_min_log_db = 10 * np.log10(R_min_log)
+    R_mean_log_db = 10 * np.log10(R_mean_log)
+    #Misalignment_log_dB = R_max_log_db - R_log_db
+    Misalignment_log_dB = R_log_db - R_max_log_db
+    Meanalignment_log_dB = R_mean_log_db - R_max_log_db
+    Minalignment_log_dB = R_min_log_db - R_max_log_db
+
+    # plots.mean_reward(R_max_log, R_mean_log, R_min_log, R_log,
+    #                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards")
+
+    plots.ECDF(np.mean(Misalignment_log_dB[-3:-1,:], axis=0))
+    plots.Relative_reward(np.mean(Misalignment_log_dB[-3:-1,:], axis=0), np.mean(Meanalignment_log_dB[-3:-1,:], axis=0), np.mean(Minalignment_log_dB[-3:-1,:], axis=0))
+
+    plots.mean_reward(R_max_log_db[-3:-1,:], R_mean_log_db[-3:-1,:], R_min_log_db[-3:-1,:], R_log_db[-3:-1,:],
+                      ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
+                      db=True)
+
+    # plots.positions(pos_log, r_lim)
+
+    # X-db misalignment probability
+    x_db = 3
+    ACC_xdb = helpers.misalignment_prob(np.mean(R_log_db, axis=0),
+                                        np.mean(R_max_log_db, axis=0), x_db)
+    print(F"{x_db}-db Mis-alignment probability: {ACC_xdb:0.3F} for full length")
+
+    NN = 1000
+    ACC_xdb_NL = helpers.misalignment_prob(np.mean(R_log_db[:, -NN:], axis=0),
+                                           np.mean(R_max_log_db[:, -NN:], axis=0), x_db)
+    print(F"{x_db}-db Mis-alignment probability: {ACC_xdb_NL:0.3F} for the last {NN}")
+
+    ACC_xdb_NF = helpers.misalignment_prob(np.mean(R_log_db[:, 0:NN], axis=0),
+                                           np.mean(R_max_log_db[:, 0:NN], axis=0), x_db)
+    print(F"{x_db}-db Mis-alignment probability: {ACC_xdb_NF:0.3F} for the first {NN}")
+>>>>>>> Hierarchical-Codebooks:main.py
 
     print("Done")
+
+
+# var_accums = np.zeros(40)
+# for j in range(40):
+#     for i in range(int(np.floor(len(R_log_db[j])/30))):
+#         var_accums[j] += np.var(R_log_db[j,i*30:i*30 + 30]) - np.mean(R_log_db[j,i*30:i*30 + 30])
+#
+# var_accums /= 1300

@@ -1,32 +1,33 @@
 {
     "RUN":              false,
     "ENGINE":           "MATLAB",
-    "FILENAME":         "no_jitter_Dennis",
-    "CASE":             "car_urban",
+    "FILENAME":         "car_highway_LOS_Fisker",
+    "CASE":             "car_highway",
     "scenarios":        ["3GPP_38.901_UMi_LOS"],
-    "N":                1900,
+    "N":                1300,
     "sample_period":    0.01,
-    "M":                1,
+    "M":                1000,
     "rlim":             200,
     "fc":               28e9,
     "P_t":              10000,
     "METHOD":           "SARSA",
     "ADJ":              true,
     "ORI":              false,
-    "DIST":             false,
+    "DIST":             true,
     "LOCATION":         false,
     "n_actions":        2,
     "n_ori":            3,
-    "dist_res":         8,
+    "ori_res":          8,
+    "dist_res":         6,
     "angle_res":        8,
     "chunksize":        1300,
-    "Episodes":         1,
+    "Episodes":         2500,
     "receiver":         {
-                        "antennea": 4,
-                        "beams": 8
+                        "antennea": 8,
+                        "layers": 3
                         },
     "transmitter":      {
-                        "antennea": 4,
-                        "beams": 8
+                        "antennea": 32,
+                        "layers": 4
                         }
 }
