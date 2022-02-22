@@ -180,8 +180,8 @@ if __name__ == "__main__":
         # Initiate the action
         action = np.random.choice(action_space)
         retning = np.random.randint(0,3)-1
-        
-        action, retning = Agent.greedy_adj()
+
+        #action, retning = Agent.greedy_adj()
         # TODO første action skal afhænge af initial state
 
         end = False
@@ -260,10 +260,19 @@ if __name__ == "__main__":
         'R_mean': R_mean_log,
         'settings': setting
     }
+    
+    helpers.dump_pickle(data,'','_results.pickle')
 
-    with open('results.pickle', 'wb+') as f:
-        # Pickle the 'data' dictionary using the highest protocol available.
-        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    # %% Load pickle
+    
+    data = helpers.load_pickle('','_results.pickle')
+    Agent = data['Agent']
+    R_log = data['R_log']
+    R_max_log = data['R_max']
+    R_min_log = data['R_min']
+    R_mean_log = data['R_mean']
+    setting = data['settings']
+
     # %% PLOT
     print("Starts plotting")
 

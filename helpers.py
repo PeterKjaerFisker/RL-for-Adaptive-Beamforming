@@ -8,6 +8,7 @@
 import os
 import sys
 
+import dill as pickle
 import numpy as np
 import scipy.io as scio
 
@@ -16,6 +17,17 @@ import plots
 
 
 # %% Functions
+def dump_pickle(data, path, filename):
+    with open(path+filename, 'wb+') as f:
+        # Pickle the 'data' dictionary using the highest protocol available.
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+
+def load_pickle(path_to_pickle, filename):
+    with open(path_to_pickle+filename,'rb') as f:
+        data = pickle.load(f)
+    
+    return data   
+
 def steering_vectors2d(direction, theta, N, lambda_):
     """
     Calculates the steering vector for a Standard ULA, with given antenna positions
