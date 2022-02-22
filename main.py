@@ -144,9 +144,11 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
+    Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
+
     for episode in tqdm(range(Episodes), desc="Episodes"):
         # Create the Agent
-        Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
+        # Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
 
         # Initiate the State at a random beam sequence
         State_tmp = [list(np.random.randint(0, Nbeam_tot, n_actions))]
@@ -181,7 +183,6 @@ if __name__ == "__main__":
         action = np.random.choice(action_space)
         retning = np.random.randint(0,3)-1
 
-        #action, retning = Agent.greedy_adj()
         # TODO første action skal afhænge af initial state
 
         end = False
@@ -289,14 +290,14 @@ if __name__ == "__main__":
     # plots.mean_reward(R_max_log, R_mean_log, R_min_log, R_log,
     #                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards")
 
-    plots.ECDF(np.mean(Misalignment_log_dB, axis=0))
-    plots.Relative_reward(np.mean(Misalignment_log_dB, axis=0), np.mean(Meanalignment_log_dB, axis=0), np.mean(Minalignment_log_dB,axis=0))
+    plots.ECDF(np.mean(Misalignment_log_dB[-3:-1,:], axis=0))
+    plots.Relative_reward(np.mean(Misalignment_log_dB[-3:-1,:], axis=0), np.mean(Meanalignment_log_dB[-3:-1,:], axis=0), np.mean(Minalignment_log_dB[-3:-1,:], axis=0))
 
-    plots.mean_reward(R_max_log_db, R_mean_log_db, R_min_log_db, R_log_db,
+    plots.mean_reward(R_max_log_db[-3:-1,:], R_mean_log_db[-3:-1,:], R_min_log_db[-3:-1,:], R_log_db[-3:-1,:],
                       ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
                       db=True)
 
-    plots.positions(pos_log, r_lim)
+    # plots.positions(pos_log, r_lim)
 
     # X-db misalignment probability
     x_db = 3
@@ -314,3 +315,11 @@ if __name__ == "__main__":
     print(F"{x_db}-db Mis-alignment probability: {ACC_xdb_NF:0.3F} for the first {NN}")
 
     print("Done")
+
+
+# var_accums = np.zeros(40)
+# for j in range(40):
+#     for i in range(int(np.floor(len(R_log_db[j])/30))):
+#         var_accums[j] += np.var(R_log_db[j,i*30:i*30 + 30]) - np.mean(R_log_db[j,i*30:i*30 + 30])
+#
+# var_accums /= 1300

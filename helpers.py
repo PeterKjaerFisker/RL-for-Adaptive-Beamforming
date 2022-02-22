@@ -11,6 +11,7 @@ import sys
 import dill as pickle
 import numpy as np
 import scipy.io as scio
+import oct2py
 
 import classes
 import plots
@@ -18,15 +19,17 @@ import plots
 
 # %% Functions
 def dump_pickle(data, path, filename):
-    with open(path+filename, 'wb+') as f:
+    with open(path + filename, 'wb+') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
+
 def load_pickle(path_to_pickle, filename):
-    with open(path_to_pickle+filename,'rb') as f:
+    with open(path_to_pickle + filename, 'rb') as f:
         data = pickle.load(f)
-    
-    return data   
+
+    return data
+
 
 def steering_vectors2d(direction, theta, N, lambda_):
     """
@@ -39,10 +42,9 @@ def steering_vectors2d(direction, theta, N, lambda_):
     :param lambda_: Wave length of carrier wave in meters
     :return: Array steering vector
     """
-    
+
     r = np.zeros((2, N))
     r[0, :] = np.linspace(0, (N - 1) * lambda_ / 2, N)
-
 
     if isinstance(theta, np.ndarray):
         e = direction * np.matrix([np.cos(theta), np.sin(theta)])
@@ -52,8 +54,9 @@ def steering_vectors2d(direction, theta, N, lambda_):
         result = np.exp(-2j * (np.pi / lambda_) * e @ r)
     else:
         raise Exception("Theta is not an array or an ")
-    
+
     return result
+
 
 def codebook_old(Nb, N):
     """
@@ -67,6 +70,7 @@ def codebook_old(Nb, N):
         Cb[n, :] = ((1 / np.sqrt(N)) * np.exp(-1j * np.pi * np.arange(N) * ((2 * n - Nb) / (Nb))))
 
     return Cb
+
 
 def codebook_new(N, k, lambda_):
     """
@@ -83,38 +87,40 @@ def codebook_new(N, k, lambda_):
     if np.ceil(np.log2(N)) != np.floor(np.log2(N)):
         raise Exception("N not a power of 2")
 
-    N_codeword = 2**(k+1)-2
+    N_codeword = 2 ** (k + 1) - 2
 
-    codebook = np.zeros((N_codeword,N), dtype=np.complex64)
+    codebook = np.zeros((N_codeword, N), dtype=np.complex64)
 
-    for i in range(1,k+1):
-        l = np.log2(N)-i
-        M = int(2**(np.floor((l+1)/2)))
-        Ns = int(N/M)
-        
+    for i in range(1, k + 1):
+        l = np.log2(N) - i
+        M = int(2 ** (np.floor((l + 1) / 2)))
+        Ns = int(N / M)
+
         if l % 2:
-            Na = M/2
+            Na = M / 2
         else:
             Na = M
 
         for m in range(1, M + 1):
             if m <= Na:
-                fm = np.exp(-1j*m*((Ns-1)/Ns)*np.pi)*steering_vectors2d(1, np.arccos((((-1+((2*m-1)/Ns))+1) % 2)-1), Ns, lambda_)
-                 
+                fm = np.exp(-1j * m * ((Ns - 1) / Ns) * np.pi) * steering_vectors2d(1, np.arccos(
+                    (((-1 + ((2 * m - 1) / Ns)) + 1) % 2) - 1), Ns, lambda_)
+
             else:
                 fm = np.zeros(Ns)
-                
-            codeword[(m-1)*Ns:m*Ns] = fm
-            
-        
-        codebook[(2**i)-2,:] = codeword
 
-        for n in range(2,2**i+1):
-            codebook[(2**i)-3+n,:] = codeword * (np.sqrt(N)*steering_vectors2d(1, np.arccos((((2*(n-1)/(2**i))+1) % 2)-1), N, lambda_))
-            
-    for idx,row in enumerate(codebook):
-        codebook[idx,:] = row*1/np.linalg.norm(row)
-        
+            codeword[(m - 1) * Ns:m * Ns] = fm
+
+        codebook[(2 ** i) - 2, :] = codeword
+
+        for n in range(2, 2 ** i + 1):
+            codebook[(2 ** i) - 3 + n, :] = codeword * (
+                        np.sqrt(N) * steering_vectors2d(1, np.arccos((((2 * (n - 1) / (2 ** i)) + 1) % 2) - 1), N,
+                                                        lambda_))
+
+    for idx, row in enumerate(codebook):
+        codebook[idx, :] = row * 1 / np.linalg.norm(row)
+
     return codebook
 
 
@@ -126,11 +132,11 @@ def codebook_layer(Nb, N):
     :return: Codebook matrix
     """
     Cb = np.zeros((Nb, N), dtype=np.complex128)
-    ratio = int(N/Nb)
+    ratio = int(N / Nb)
     for n in range(Nb):
         weights = ((1 / np.sqrt(N)) * np.exp(-1j * np.pi * np.arange(Nb) * ((2 * n - Nb) / (Nb))))
         for i in range(ratio):
-            Cb[n, Nb*i:Nb*(i+1)] = weights
+            Cb[n, Nb * i:Nb * (i + 1)] = weights
 
     return Cb
 
@@ -250,6 +256,128 @@ def noisy_ori(ori_vector):
         new_orientation[idx, 0] = res
 
     return new_orientation
+
+
+def create_pos_log(case, para, pos_log_name):
+    [N, M, r_lim, sample_period, scenarios] = para
+
+    print("Creating track")
+
+    # Create the class
+    track = classes.Track(case=case, delta_t=sample_period, r_lim=r_lim)
+
+    pos_log_done = False
+    while pos_log_done is False:
+        # Create the tracks
+        pos_log = []
+        for m in range(M):
+            pos_log.append(track.run(N))
+
+        plots.positions(pos_log, r_lim)
+
+        user_input = input("Does the created track(s) look fine (yes/no/stop)")
+        if user_input.lower() == "yes":
+            pos_log_done = True
+        if user_input.lower() == "stop":
+            sys.exit("Program stopped by user")
+
+    print('track done')
+    # Save the data
+    scio.savemat("Data_sets/" + pos_log_name, {"pos_log": pos_log, "scenarios": scenarios})
+
+
+def quadriga_simulation(multi_user, ENGINE, pos_log_name, data_name, para):
+    """
+    Generates parameters for the channel model.
+    Parameters are generated from Quadriga simulations.
+    Either a MATLAB or Octave engine is used to run simulations.
+
+    :param RUN: Bool to determine if load from files or run simulation
+    :param ENGINE: Which engine to use for simulations. "MATLAB" or "Octave"
+    :param pos_log_name: Name of data file containing positions and scenarios eg: "data_pos.mat"
+    :param data_name: Name of data file containing parameters/coefficients from simulations eg: "data.mat"
+    :param para: List of simulation settings/parameters used in the simulations
+    :return:
+    """
+    [fc, N, M, r_lim, sample_period, scenarios] = para
+
+    if ENGINE == "octave":
+        try:
+            from oct2py import octave
+
+        except ModuleNotFoundError:
+            raise
+
+        except OSError:
+            raise OSError("'octave-cli' hasn't been added to path environment")
+
+        print("Creating new data - octave")
+
+        # Add Quadriga folder to octave path
+        octave.addpath(octave.genpath(f"{os.getcwd()}/Quadriga"))
+
+        # Run the scenario to get the simulated channel parameters
+        if multi_user:
+            if octave.get_data_multi_user(fc, pos_log_name, data_name, ENGINE):
+                try:
+                    simulation_data = scio.loadmat("Data_sets/" + data_name)
+                    simulation_data = simulation_data["output"]
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
+            else:
+                raise Exception("Something went wrong")
+        else:
+            if octave.get_data(fc, pos_log_name, data_name, ENGINE):
+                try:
+                    simulation_data = scio.loadmat("Data_sets/" + data_name)
+                    simulation_data = simulation_data["output"]
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
+            else:
+                raise Exception("Something went wrong")
+
+    elif ENGINE == "MATLAB":
+        try:
+            import matlab.engine
+            print("Creating new data - MATLAB")
+
+        except ModuleNotFoundError:
+            raise Exception("You don't have matlab.engine installed")
+
+        # start MATLAB engine
+        eng = matlab.engine.start_matlab()
+
+        # Add Quadriga folder to path
+        eng.addpath(eng.genpath(f"{os.getcwd()}/Quadriga"))
+
+        if multi_user:
+            if eng.get_data_multi_user(fc, pos_log_name, data_name, ENGINE):
+                try:
+                    simulation_data = scio.loadmat("Data_sets/" + data_name)
+                    simulation_data = simulation_data["output"]
+
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
+
+            else:
+                raise Exception("Something went wrong")
+        else:
+            if eng.get_data(fc, pos_log_name, data_name, ENGINE):
+                try:
+                    simulation_data = scio.loadmat("Data_sets/" + data_name)
+                    simulation_data = simulation_data["output"]
+
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
+            else:
+                raise Exception("Something went wrong")
+
+        eng.quit()
+
+    else:
+        raise Exception("ENGINE name is incorrect")
+
+    return simulation_data
 
 
 def get_data(RUN, ENGINE, case, pos_log_name, data_name, para):
