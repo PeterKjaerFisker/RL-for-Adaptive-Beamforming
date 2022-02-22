@@ -10,8 +10,10 @@ import sys
 
 import numpy as np
 import scipy.io as scio
+import oct2py
 
 import classes
+
 
 # %% Functions
 def steering_vectors2d(direction, theta, r, lambda_):
@@ -177,7 +179,7 @@ def get_data(pos_log_name, data_name):
     except IOError:
         print(f"Datafile {pos_log_name} not found")
         sys.exit()
-        
+
     try:
         tmp = scio.loadmat("Data_sets/" + data_name)
         tmp = tmp["output"]
@@ -187,3 +189,97 @@ def get_data(pos_log_name, data_name):
         sys.exit()
 
     return tmp, pos_log
+
+
+def quadriga_simulation(multi_user, ENGINE, pos_log_name, data_name, para):
+    """
+    Generates parameters for the channel model.
+    Parameters are generated from Quadriga simulations.
+    Either a MATLAB or Octave engine is used to run simulations.
+
+    :param RUN: Bool to determine if load from files or run simulation
+    :param ENGINE: Which engine to use for simulations. "MATLAB" or "Octave"
+    :param pos_log_name: Name of data file containing positions and scenarios eg: "data_pos.mat"
+    :param data_name: Name of data file containing parameters/coefficients from simulations eg: "data.mat"
+    :param para: List of simulation settings/parameters used in the simulations
+    :return:
+    """
+    [fc, N, M, r_lim, sample_period, scenarios] = para
+
+    if ENGINE == "octave":
+        try:
+            from oct2py import octave
+
+        except ModuleNotFoundError:
+            raise
+
+        except OSError:
+            raise OSError("'octave-cli' hasn't been added to path environment")
+
+        print("Creating new data - octave")
+
+        # Add Quadriga folder to octave path
+        octave.addpath(octave.genpath(f"{os.getcwd()}/Quadriga"))
+
+        # Run the scenario to get the simulated channel parameters
+        if multi_user:
+            if octave.get_data_multi_user(fc, pos_log_name, data_name, ENGINE):
+                try:
+                    simulation_data = scio.loadmat("Data_sets/" + data_name)
+                    simulation_data = simulation_data["output"]
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
+            else:
+                raise Exception("Something went wrong")
+        else:
+            if octave.get_data(fc, pos_log_name, data_name, ENGINE):
+                try:
+                    simulation_data = scio.loadmat("Data_sets/" + data_name)
+                    simulation_data = simulation_data["output"]
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
+            else:
+                raise Exception("Something went wrong")
+
+    elif ENGINE == "MATLAB":
+        try:
+            import matlab.engine
+            print("Creating new data - MATLAB")
+
+        except ModuleNotFoundError:
+            raise Exception("You don't have matlab.engine installed")
+
+        # start MATLAB engine
+        eng = matlab.engine.start_matlab()
+
+        # Add Quadriga folder to path
+        eng.addpath(eng.genpath(f"{os.getcwd()}/Quadriga"))
+
+        if multi_user:
+            if eng.get_data_multi_user(fc, pos_log_name, data_name, ENGINE):
+                try:
+                    simulation_data = scio.loadmat("Data_sets/" + data_name)
+                    simulation_data = simulation_data["output"]
+
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
+
+            else:
+                raise Exception("Something went wrong")
+        else:
+            if eng.get_data(fc, pos_log_name, data_name, ENGINE):
+                try:
+                    simulation_data = scio.loadmat("Data_sets/" + data_name)
+                    simulation_data = simulation_data["output"]
+
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
+            else:
+                raise Exception("Something went wrong")
+
+        eng.quit()
+
+    else:
+        raise Exception("ENGINE name is incorrect")
+
+    return simulation_data
