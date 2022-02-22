@@ -162,7 +162,7 @@ def noisy_ori(ori_vector):
     return new_orientation
 
 
-def get_data(pos_log_name, data_name):
+def load_data(pos_log_name, data_name):
     """
     Loads parameters from earlier simulations.
     :param pos_log_name: Name of data file containing positions and scenarios eg: "data_pos.mat"

@@ -64,9 +64,7 @@ if __name__ == "__main__":
     # ----------- Create the data -----------
     t_start = time()
     # Load or create the data
-    channel_par, pos_log = helpers.get_data(
-                                            f"data_pos_{FILENAME}.mat", f"data_{FILENAME}",
-                                            )
+    channel_par, pos_log = helpers.load_data(f"data_pos_{FILENAME}.mat", f"data_{FILENAME}")
     print(f"Took: {time() - t_start}", flush=True)
 
     # Re-affirm that "M" matches data
