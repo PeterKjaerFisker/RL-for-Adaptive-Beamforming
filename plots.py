@@ -12,6 +12,16 @@ import numpy as np
 
 # %% Functions
 def stability(save, data, average_window):
+    """
+    Plots the 'stability' for each episode, by first calculating a low-pass
+    version of the signals, then using this as the mean at each point to
+    calculate variance
+    :param save: Whether to save or only show in IDE
+    :param data: Data stability is found for
+    :param average_window: Low-pass filtering is perforned by averaginge over a
+                           window of this length
+    :return: Nothing
+    """
     est_mean = np.zeros((data.shape[0],data.shape[1]))
 
     # Adds copies of the last column to the end of the matrix, and the first column to the start
@@ -38,6 +48,13 @@ def stability(save, data, average_window):
     plt.show()
 
 def ECDF(save, data):
+    """
+    Plots the emperical cumulative distribution function for the x-db
+    misalignment
+    :param save: Whether to save or only show in IDE
+    :param data: Data the misalignment should be found from
+    :return: Nothing
+    """
     data_len = len(data)
     data_sorted = np.sort(data)
     y = np.arange(data_len) / float(data_len)
@@ -52,6 +69,14 @@ def ECDF(save, data):
 
 
 def Relative_reward(save, mis_data, mis_mean, mis_min):
+    """
+    Plots the three normalized vectors of points
+    :param save: Whether to save or only show in IDE
+    :param mis_data: Vector of normalized points with respect to max
+    :param mis_mean: Vector of normalized mean points with respect to max
+    :param mis_min: Vector of normalized min points with respect to max
+    :return: Nothing
+    """
     plt.figure()
     plt.title("Relative difference - dB")
     plt.plot(mis_min, label="R_min")
@@ -67,6 +92,16 @@ def Relative_reward(save, mis_data, mis_mean, mis_min):
 
 def mean_reward(save, y1, y2, y3, y4, labels, title,
                 x1=None, x2=None, x3=None, x4=None, db=False):
+    """
+    Plots y1 through y4 on a single plot, meant for
+    plotting received reward vs max mean and min reward
+    :param save: Whether to save or only show in IDE
+    :param y1 - y4: Vectors of points, used as y values
+    :param labels: Labels for each respective vector of points from y1 - y4
+    :param title: Title put on the figure
+    :param x1 - x4: Only use if x shouldn't default to positive whole numbers
+    :return: Nothing
+    """
     if x1 is None:
         x1 = np.arange(len(y1[0, :]))
     if x2 is None:

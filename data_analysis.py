@@ -32,6 +32,7 @@ Minalignment_log_dB = R_min_log_db - R_max_log_db
 
 plots.ECDF(Save, np.mean(Misalignment_log_dB[-3:-1 ,:], axis=0))
 plots.Relative_reward(Save, np.mean(Misalignment_log_dB, axis=0), np.mean(Meanalignment_log_dB, axis=0), np.mean(Minalignment_log_dB, axis=0))
+plots.stability(Save, R_log_db, 50)
 
 plots.mean_reward(Save, R_max_log_db, R_mean_log_db, R_min_log_db, R_log_db,
                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
