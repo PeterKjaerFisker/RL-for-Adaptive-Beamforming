@@ -9,13 +9,14 @@ import helpers
 import plots
 # %% Load pickle
 
-data = helpers.load_pickle('' ,'_results.pickle')
+data = helpers.load_pickle('' ,'Car_highway_2500ep.pickle')
 Agent = data['Agent']
 R_log = data['R_log']
 R_max_log = data['R_max']
 R_min_log = data['R_min']
 R_mean_log = data['R_mean']
 setting = data['settings']
+Save = False
 
 # %% PLOT
 print("Starts plotting")
@@ -29,10 +30,10 @@ Misalignment_log_dB = R_log_db - R_max_log_db
 Meanalignment_log_dB = R_mean_log_db - R_max_log_db
 Minalignment_log_dB = R_min_log_db - R_max_log_db
 
-plots.ECDF(np.mean(Misalignment_log_dB[-3:-1 ,:], axis=0))
-plots.Relative_reward(np.mean(Misalignment_log_dB[-3:-1 ,:], axis=0), np.mean(Meanalignment_log_dB[-3:-1 ,:], axis=0), np.mean(Minalignment_log_dB[-3:-1 ,:], axis=0))
+plots.ECDF(Save, np.mean(Misalignment_log_dB[-3:-1 ,:], axis=0))
+plots.Relative_reward(Save, np.mean(Misalignment_log_dB, axis=0), np.mean(Meanalignment_log_dB, axis=0), np.mean(Minalignment_log_dB, axis=0))
 
-plots.mean_reward(R_max_log_db[-3:-1 ,:], R_mean_log_db[-3:-1 ,:], R_min_log_db[-3:-1 ,:], R_log_db[-3:-1 ,:],
+plots.mean_reward(Save, R_max_log_db, R_mean_log_db, R_min_log_db, R_log_db,
                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
                   db=True)
 

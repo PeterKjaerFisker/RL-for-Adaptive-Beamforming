@@ -11,8 +11,33 @@ import numpy as np
 
 
 # %% Functions
+def stability(save, data, average_window):
+    est_mean = np.zeros((data.shape[0],data.shape[1]))
 
-def ECDF(data):
+    # Adds copies of the last column to the end of the matrix, and the first column to the start
+    padded_data = np.append(data,np.tile(data[:,-1],(int(np.ceil((average_window-1)/2)),1)).T, axis = 1)
+    padded_data = np.append(np.tile(data[:,0],(int(np.floor((average_window-1)/2)),1)).T, padded_data, axis = 1)
+
+    # Calculate the mean at each point for all episodes
+    for step in range(data.shape[1]):
+        est_mean[:,step] = np.mean(padded_data[:,step:(step+average_window)], axis = 1)
+    
+    if save == True:
+        plt.savefig("Figures/Stability.pdf")
+        
+    # Calculate the sample variance for each episode and return vector of variances.
+    stability = np.mean((data-est_mean)**2, axis = 1)
+    
+    plt.figure()
+    plt.title(f"Stability of episodes ({average_window} avreage window)")
+    plt.plot(stability)
+    plt.xlabel("Episode")
+    plt.ylabel("Stability")
+    if save == True:
+        plt.savefig("Figures/ECDF.pdf")
+    plt.show()
+
+def ECDF(save, data):
     data_len = len(data)
     data_sorted = np.sort(data)
     y = np.arange(data_len) / float(data_len)
@@ -21,10 +46,12 @@ def ECDF(data):
     plt.plot(data_sorted, y)
     plt.xlabel("x-dB Mis-alignment")
     plt.ylabel("Probability")
+    if save == True:
+        plt.savefig("Figures/ECDF.pdf")
     plt.show()
 
 
-def Relative_reward(mis_data, mis_mean, mis_min):
+def Relative_reward(save, mis_data, mis_mean, mis_min):
     plt.figure()
     plt.title("Relative difference - dB")
     plt.plot(mis_min, label="R_min")
@@ -33,10 +60,12 @@ def Relative_reward(mis_data, mis_mean, mis_min):
     plt.legend()
     plt.xlabel("Number of Steps")
     plt.ylabel("Normalized reward")
+    if save == True:
+        plt.savefig("Figures/Relative_reward.pdf")
     plt.show
 
 
-def mean_reward(y1, y2, y3, y4, labels, title,
+def mean_reward(save, y1, y2, y3, y4, labels, title,
                 x1=None, x2=None, x3=None, x4=None, db=False):
     if x1 is None:
         x1 = np.arange(len(y1[0, :]))
@@ -59,11 +88,12 @@ def mean_reward(y1, y2, y3, y4, labels, title,
     plt.ylabel("Mean Reward")
     if db is False:
         plt.yscale('log')
-    plt.savefig(f"{title}.pdf")
+    if save == True:
+        plt.savefig(f"Figures/{title}.pdf")
     plt.show()
 
 
-def directivity(W, N, title):
+def directivity(save, W, N, title):
     """
     Plots a directivity plot for a codebook
     :param W: Codebook
@@ -91,10 +121,12 @@ def directivity(W, N, title):
 
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05),
               ncol=4)
+    if save == True:
+        plt.savefig("Figures/Directivity.pdf")
     plt.show()
 
 
-def positions(pos_log, r_lim):
+def positions(save, pos_log, r_lim):
     fig, ax = plt.subplots()
     ax.set_title("Random Walk")
     ax.set_ylabel("Distance from transmitter [m]")
@@ -112,4 +144,6 @@ def positions(pos_log, r_lim):
 
     ax.set_aspect('equal', adjustable='box')
 
+    if save == True:
+        plt.savefig("Figures/Paths.pdf")
     plt.show()

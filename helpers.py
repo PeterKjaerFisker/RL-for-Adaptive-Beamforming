@@ -291,7 +291,7 @@ def create_pos_log(case, para, pos_log_name):
         for m in range(M):
             pos_log.append(track.run(N))
 
-        plots.positions(pos_log, r_lim)
+        plots.positions(False, pos_log, r_lim)
 
         user_input = input("Does the created track(s) look fine (yes/no/stop)")
         if user_input.lower() == "yes":
