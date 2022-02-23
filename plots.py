@@ -9,18 +9,20 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
+
 # %% Functions
 
 def ECDF(data):
     data_len = len(data)
     data_sorted = np.sort(data)
-    y = np.arange(data_len)/float(data_len)
+    y = np.arange(data_len) / float(data_len)
     plt.figure()
     plt.title("x-dB Mis-alignment probability - ECDF")
-    plt.plot(data_sorted,y)
+    plt.plot(data_sorted, y)
     plt.xlabel("x-dB Mis-alignment")
     plt.ylabel("Probability")
     plt.show()
+
 
 def Relative_reward(mis_data, mis_mean, mis_min):
     plt.figure()
@@ -32,40 +34,6 @@ def Relative_reward(mis_data, mis_mean, mis_min):
     plt.xlabel("Number of Steps")
     plt.ylabel("Normalized reward")
     plt.show
-
-def n_lastest_scatter(y1, y2, N, labels, title,
-                      x1=None, x2=None, marker=None):
-    if x1 is None:
-        x1 = np.arange(N)
-
-    if x2 is None:
-        x2 = np.arange(N)
-
-    plt.figure()
-    plt.title(title)
-
-    plt.scatter(x1, y1[-N:], label=labels[0], marker=marker)
-    plt.scatter(x2, y2[-N:], label=labels[1], marker=marker)
-    plt.legend()
-    plt.show()
-
-
-def n_lastest_scatter_ylog(y1, y2, N, labels, title,
-                           x1=None, x2=None, marker=None):
-    if x1 is None:
-        x1 = np.arange(N)
-
-    if x2 is None:
-        x2 = np.arange(N)
-
-    plt.figure()
-    plt.title(title)
-
-    plt.scatter(x1, y1[-N:], label=labels[0], marker=marker)
-    plt.scatter(x2, y2[-N:], label=labels[1], marker=marker)
-    plt.legend()
-    plt.yscale('log')
-    plt.show()
 
 
 def mean_reward(y1, y2, y3, y4, labels, title,
@@ -80,7 +48,7 @@ def mean_reward(y1, y2, y3, y4, labels, title,
         x4 = np.arange(len(y4[0, :]))
 
     plt.figure()
-    plt.title(title+f" - {len(y1)} Episodes")
+    plt.title(title + f" - {len(y1)} Episodes")
 
     plt.plot(x1, np.mean(y1, axis=0), label=labels[0])
     plt.plot(x2, np.mean(y2, axis=0), label=labels[1])
@@ -89,7 +57,7 @@ def mean_reward(y1, y2, y3, y4, labels, title,
     plt.legend()
     plt.xlabel("Number of Steps")
     plt.ylabel("Mean Reward")
-    if db is not True:
+    if db is False:
         plt.yscale('log')
     plt.savefig(f"{title}.pdf")
     plt.show()
@@ -118,9 +86,6 @@ def directivity(W, N, title):
     ax.set_yticklabels([])
     ax.set_title(title)
     for j in range(len(W)):
-        # Calculate the angle with max gain for each code-page.
-        #max_angle = np.pi - np.arccos(np.angle(W[j, 1]) / np.pi)
-
         # Plot the gain
         ax.plot(Theta, beam[j, :], label=f"{j}")
 
@@ -141,51 +106,10 @@ def positions(pos_log, r_lim):
 
     ax.set_xlim([-r_lim, r_lim])
     ax.set_ylim([-r_lim, r_lim])
-    ax.plot(0, 0,'X', label="Transmitter")
+    ax.plot(0, 0, 'X', label="Transmitter")
     if len(pos_log) < 10:
         plt.legend()
 
     ax.set_aspect('equal', adjustable='box')
 
-    plt.show()
-
-
-def ori_lines(y1, y2, ori_discrete, labels, title, N1, N2,
-              x1=None, x2=None):
-
-    ori = ori_discrete[0][N1:N2]
-    y1 = y1[:, N1:N2]
-    y2 = y2[:, N1:N2]
-
-    if x1 is None:
-        x1 = np.arange(len(y1[0, :]))
-    if x2 is None:
-        x2 = np.arange(len(y2[0, :]))
-
-    tmp = []
-    for x in range(1, len(ori)):
-        diff = np.abs(ori[x]-ori[x-1])
-        if diff > 4:
-            diff = 8 - diff
-
-        if diff > 1:
-            tmp.append(x)
-
-    tmp = np.array(tmp)
-
-    """
-    tmp = [x for x in range(1, len(ori))
-           if (np.abs(ori[x]-ori[x-1]) > 1)]
-    """
-
-    plt.figure()
-    plt.title(title+f" - {len(y1)} Episodes")
-    plt.plot(x1, np.mean(y1, axis=0), label=labels[0])
-    plt.plot(x2, np.mean(y2, axis=0), label=labels[1])
-    plt.legend()
-    for t in tmp:
-        plt.axvline(t, 0, 1, color='red')
-    plt.xlabel("Number of Steps")
-    plt.ylabel("Mean Reward")
-    plt.yscale('log')
     plt.show()

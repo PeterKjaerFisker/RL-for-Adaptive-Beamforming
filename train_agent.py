@@ -8,7 +8,6 @@ import json
 import sys
 from time import time
 
-
 import numpy as np
 from tqdm import tqdm
 
@@ -48,7 +47,7 @@ if __name__ == "__main__":
     LOCATION = setting["LOCATION"]  # Include location in polar coordinates in the state
     n_actions = setting["n_actions"]  # Number of previous actions
     n_ori = setting["n_ori"]  # Number of previous orientations
-    ori_res = setting["ori_res"] # Resolution of the orientation
+    ori_res = setting["ori_res"]  # Resolution of the orientation
     dist_res = setting["dist_res"]  # Resolution of the distance
     angle_res = setting["angle_res"]  # Resolution of the angle
     chunksize = setting["chunksize"]  # Number of samples taken out
@@ -57,15 +56,15 @@ if __name__ == "__main__":
     Nr = setting["receiver"]["antennea"]  # Receiver
     Nlt = setting["transmitter"]["layers"]  # Transmitter
     Nlr = setting["receiver"]["layers"]  # Receiver
-    Nbeam_tot = (2**(Nlr+1))-2 # Total number of beams for the receiver
+    Nbeam_tot = (2 ** (Nlr + 1)) - 2  # Total number of beams for the receiver
 
     # Load Scenario configuration
     with open(f'Cases/{CASE}.json', 'r') as fp:
         case = json.load(fp)
 
-    # ----------- Create the data -----------
+    # ----------- Load the data -----------
     t_start = time()
-    # Load or create the data
+    # Load the data
     channel_par, pos_log = helpers.load_data(f"data_pos_{FILENAME}.mat", f"data_{FILENAME}")
     print(f"Took: {time() - t_start}", flush=True)
 
@@ -90,11 +89,10 @@ if __name__ == "__main__":
     AoA_Local = []
 
     # Calculate DFT-codebook - Transmitter
-    precoder_codebook = helpers.codebook_new(Nt, Nlt, lambda_)
+    precoder_codebook = helpers.codebook(Nt, Nlt, lambda_)
 
     # Calculate DFT-codebook - Receiver
-    combiner_codebook = helpers.codebook_new(Nr,Nlr,lambda_)
-    
+    combiner_codebook = helpers.codebook(Nr, Nlr, lambda_)
 
     # Calculate the AoA in the local coordinate system
     for m in range(M):
@@ -174,7 +172,7 @@ if __name__ == "__main__":
 
         # Initiate the action
         action = np.random.choice(action_space)
-        retning = np.random.randint(0,3)-1
+        retning = np.random.randint(0, 3) - 1
 
         # TODO første action skal afhænge af initial state
 
@@ -222,7 +220,7 @@ if __name__ == "__main__":
             R, R_max, R_min, R_mean = Env.take_action(n, action)
 
             if METHOD == "simple":
-                Agent.update(State, action, R, para=para)
+                Agent.update_simple(State, action, R, para=para)
             elif METHOD == "SARSA":
                 if ADJ:
                     next_action = Agent.e_greedy_adj(State.get_nextstate(action,
@@ -254,6 +252,5 @@ if __name__ == "__main__":
         'R_mean': R_mean_log,
         'settings': setting
     }
-    
-    helpers.dump_pickle(data,'','_results.pickle')
 
+    helpers.dump_pickle(data, '', '_results.pickle')

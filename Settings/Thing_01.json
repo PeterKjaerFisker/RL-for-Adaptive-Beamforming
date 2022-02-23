@@ -21,7 +21,7 @@
     "dist_res":         6,
     "angle_res":        8,
     "chunksize":        1300,
-    "Episodes":         2500,
+    "Episodes":         2,
     "receiver":         {
                         "antennea": 8,
                         "layers": 3

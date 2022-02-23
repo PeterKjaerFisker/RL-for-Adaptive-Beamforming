@@ -266,9 +266,9 @@ class Environment():
     def _get_reward(self, stepnr, action):
         # Calculate steering vectors for transmitter and receiver
         alpha_rx = helpers.steering_vectors2d(direction=-1, theta=self.AoA[stepnr, :],
-                                              N = self.Nr, lambda_=self.lambda_)
+                                              N=self.Nr, lambda_=self.lambda_)
         alpha_tx = helpers.steering_vectors2d(direction=1, theta=self.AoD[stepnr, :],
-                                              N = self.Nt, lambda_=self.lambda_)
+                                              N=self.Nt, lambda_=self.lambda_)
 
         # Calculate channel matrix H
         H = np.zeros((self.Nr, self.Nt), dtype=np.complex128)
@@ -301,9 +301,9 @@ class State:
     def __init__(self, intial_state):
         self.state = intial_state
 
-    def update_state(self, action, para=[None, None, None], retning = None):
+    def update_state(self, action, para=[None, None, None], retning=None):
         dist, ori, angle = para
-        
+
         if retning is not None:
             state_a = self.state[0][1:-1]
             state_a.append(retning)
@@ -445,7 +445,7 @@ class Agent:
         Parameters
         ----------
         state : ARRAY
-            Which position on the grid you are standing on (x,y).
+            The current state
 
         Returns
         -------
@@ -484,54 +484,61 @@ class Agent:
         else:
             return np.random.choice(self.action_space)
 
-    def greedy_adj(self, state, action, Nlayers):
-        N = len(self.action_space)
-        
-        
-        lag = int(np.floor(np.log2(action+2))) # Wrap around for left/right
-        if lag == int(np.floor(np.log2(action+3))):
-            action_Right = action + 1
+    def get_action_list_adj(self, last_action, Nlayers):
+        current_layer = int(np.floor(np.log2(last_action + 2)))  # Wrap around for left/right
+
+        # Check if the codeword to the "right" is still in the same layer
+        if current_layer == int(np.floor(np.log2(last_action + 3))):
+            action_Right = last_action + 1
         else:
-            action_Right = int((action-1)/2)
-            
-        if lag == int(np.floor(np.log2(action+1))):
-            action_Left = action - 1
+            action_Right = int((last_action - 1) / 2)
+
+        # Check if the codeword to the "left" is still in the same layer
+        if current_layer == int(np.floor(np.log2(last_action + 1))):
+            action_Left = last_action - 1
         else:
-            action_Left = int((action*2)+1)
+            action_Left = int((last_action * 2) + 1)
 
         # Limits the agent to taking appropriate actions
-        actions = [self.action_space[action], # Stay
-                   self.action_space[action_Right], # Right
-                   self.action_space[action_Left]] # Left
+        actions = [self.action_space[last_action],  # Stay
+                   self.action_space[action_Right],  # Right
+                   self.action_space[action_Left]]  # Left
 
-        if lag != 1 and lag != Nlayers:
-                actions.append(self.action_space[int(np.floor((action-2)/2))]) # Down
-                actions.append(self.action_space[int((action*2)+3)]) # Up Right
-                actions.append(self.action_space[int((action*2)+2)]) # Up Left
+        # Check if current layer is between the bottom and top layers
+        if current_layer != 1 and current_layer != Nlayers:
+            actions.append(self.action_space[int(np.floor((last_action - 2) / 2))])  # Down
+            actions.append(self.action_space[int((last_action * 2) + 3)])  # Up Right
+            actions.append(self.action_space[int((last_action * 2) + 2)])  # Up Left
 
-                dir_list = [0, 1, 2, 3, 4, 5]
+            dir_list = [0, 1, 2, 3, 4, 5]
 
-        elif lag != 1: # Check if on bottom layer
-            actions.append(self.action_space[int(np.floor((action-2)/2))]) # Down
+        elif current_layer != 1:  # Check if on bottom layer
+            actions.append(self.action_space[int(np.floor((last_action - 2) / 2))])  # Down
 
             dir_list = [0, 1, 2, 3]
 
-        else: # Check if on uppermost layer
-            actions.append(self.action_space[int((action*2)+3)]) # Up Right
-            actions.append(self.action_space[int((action*2)+2)]) # Up Left
+        else:  # Check if on uppermost layer
+            actions.append(self.action_space[int((last_action * 2) + 3)])  # Up Right
+            actions.append(self.action_space[int((last_action * 2) + 2)])  # Up Left
 
             dir_list = [0, 1, 2, 4, 5]
+
+        return actions, dir_list
+
+    def greedy_adj(self, state, last_action, Nlayers):
+
+        actions, dir_list = self.get_action_list_adj(last_action, Nlayers)
 
         choice = np.random.randint(0, len(dir_list))
         next_action = actions[choice]
         next_dir = dir_list[choice]
         r_est = self.Q[state, next_action][0]
 
-        for idx, action in enumerate(actions):
-            if self.Q[state, action][0] > r_est:
-                next_action = action
+        for idx, last_action in enumerate(actions):
+            if self.Q[state, last_action][0] > r_est:
+                next_action = last_action
                 next_dir = dir_list[choice]
-                r_est = self.Q[state, action][0]
+                r_est = self.Q[state, last_action][0]
 
         return next_action, next_dir
 
@@ -539,87 +546,15 @@ class Agent:
         if np.random.random() > self.eps:
             next_action, next_dir = self.greedy_adj(state, last_action, Nlayers)
         else:
-            N = len(self.action_space)
-
-
-            lag = int(np.floor(np.log2(last_action+2))) # Wrap around for left/right
-            if lag == np.floor(np.log2(last_action+3)):
-                action_Right = last_action + 1
-            else:
-                action_Right = int((last_action-1)/2)
-                
-            if lag == int(np.floor(np.log2(last_action+1))):
-                action_Left = last_action - 1
-            else:
-                action_Left = int((last_action*2)+1)
-            
-            # Limits the agent to taking appropriate actions
-            actions = [self.action_space[last_action], # Stay
-                       self.action_space[action_Right], # Right
-                       self.action_space[action_Left]] # Left
-            
-            if lag != 1 and lag != Nlayers:
-                actions.append(self.action_space[int(np.floor((last_action-2)/2))]) # Down
-                actions.append(self.action_space[int((last_action*2)+3)]) # Up Right
-                actions.append(self.action_space[int((last_action*2)+2)]) # Up Left
-                
-                dir_list = [0, 1, 2, 3, 4, 5]
-            
-            elif lag != 1: # Check if on bottom layer
-                actions.append(self.action_space[int(np.floor((last_action-2)/2))]) # Down
-                
-                dir_list = [0, 1, 2, 3]
-                
-            else: # Check if on uppermost layer
-                actions.append(self.action_space[int((last_action*2)+3)]) # Up Right
-                actions.append(self.action_space[int((last_action*2)+2)]) # Up Left
-                
-                dir_list = [0, 1, 2, 4, 5]
+            actions, dir_list = self.get_action_list_adj(last_action, Nlayers)
 
             choice = np.random.randint(0, len(dir_list))
             next_action = actions[choice]
-            next_dir = dir_list[choice]         # TODO NO LONGER VALID -1 = Left, 0 = Stay, +1 = Right
+            next_dir = dir_list[choice]  # TODO NO LONGER VALID -1 = Left, 0 = Stay, +1 = Right
 
         return next_action, next_dir
 
-    def UCB(self, state, t):
-        """
-        Uses the Upper Confidence Bound method as a policy. See eq. (2.10)
-        in the book:
-        Reinforcement Learning - An introduction.
-        Second edition by Richard S. Sutton and Andrew G. Barto
-
-        Parameters
-        ----------
-        state : ARRAY
-            Current position (x,y).
-        t : INT
-            Current time step.
-
-        Returns
-        -------
-        beam_dir : INT
-            Beam direction.
-
-        """
-        beam_dir = np.random.choice(self.action_space)
-        if self.Q[state, beam_dir][1] == 0:
-            r_est = self.Q[state, beam_dir][0] + self.c * np.sqrt(np.log(t) / 1)
-        else:
-            r_est = self.Q[state, beam_dir][0] + self.c * np.sqrt(np.log(t) / self.Q[state, beam_dir][1])
-
-        for action in self.action_space:
-            if self.Q[state, action][1] == 0:
-                r_est_new = self.Q[state, action][0] + self.c * np.sqrt(np.log(t) / 1)
-            else:
-                r_est_new = self.Q[state, action][0] + self.c * np.sqrt(np.log(t) / self.Q[state, action][1])
-            if r_est_new > r_est:
-                beam_dir = action
-                r_est = r_est_new
-
-        return beam_dir
-
-    def update(self, State, action, reward, para):
+    def update_simple(self, State, action, reward, para):
         """
         Update the Q table for the given state and action based on equation (2.5)
         in the book:
@@ -642,8 +577,7 @@ class Agent:
         """
         state = State.get_state(para)
 
-        self.Q[state, action] = [(self.Q[state, action][0] +
-                                  self.alpha[state, action][0] * (reward - self.Q[state, action][0])),
+        self.Q[state, action] = [(self.Q[state, action][0] + self.alpha[state, action][0] * (reward - self.Q[state, action][0])),
                                  self.Q[state, action][1] + 1]
         self._update_alpha(state, action)
 

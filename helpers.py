@@ -14,6 +14,7 @@ import scipy.io as scio
 import oct2py
 
 import classes
+import plots
 
 
 # %% Functions
@@ -57,7 +58,7 @@ def steering_vectors2d(direction, theta, N, lambda_):
     return result
 
 
-def codebook_new(N, k, lambda_):
+def codebook(N, k, lambda_):
     """
     Calculates the codebook based on the number of antennae and number of layers
     The bottom layer always has 2 beams, and the number of beams in each layer
@@ -100,8 +101,8 @@ def codebook_new(N, k, lambda_):
 
         for n in range(2, 2 ** i + 1):
             codebook[(2 ** i) - 3 + n, :] = codeword * (
-                        np.sqrt(N) * steering_vectors2d(1, np.arccos((((2 * (n - 1) / (2 ** i)) + 1) % 2) - 1), N,
-                                                        lambda_))
+                    np.sqrt(N) * steering_vectors2d(1, np.arccos((((2 * (n - 1) / (2 ** i)) + 1) % 2) - 1), N,
+                                                    lambda_))
 
     for idx, row in enumerate(codebook):
         codebook[idx, :] = row * 1 / np.linalg.norm(row)
@@ -109,24 +110,18 @@ def codebook_new(N, k, lambda_):
     return codebook
 
 
-def codebook_layer(Nb, N):
-    """
-    Calculates the codebook based on the number of antennae and beams
-    :param Nb: Number of beams
-    :param N: Number of antennae
-    :return: Codebook matrix
-    """
-    Cb = np.zeros((Nb, N), dtype=np.complex128)
-    ratio = int(N / Nb)
-    for n in range(Nb):
-        weights = ((1 / np.sqrt(N)) * np.exp(-1j * np.pi * np.arange(Nb) * ((2 * n - Nb) / (Nb))))
-        for i in range(ratio):
-            Cb[n, Nb * i:Nb * (i + 1)] = weights
-
-    return Cb
-
-
 def angle_to_beam(AoA, W):
+    """
+    Finds the beam with highest gain for each angle in a given Angle of Arrival vector.
+    Parameters
+    ----------
+    AoA : Vector with Angles of Arrival
+    W : Codebook of beamformers
+
+    Returns
+    -------
+
+    """
     beam_tmp = np.zeros([len(W), 1])
     beam = np.zeros([len(AoA), 1])
 
@@ -159,6 +154,17 @@ def get_local_angle(AoA, Ori):
 
 
 def discrete_ori(Ori, N):
+    """
+    Maps continuous orientation angles to N discrete angle values
+    Parameters
+    ----------
+    Ori : Continuous orientation angles
+    N : Number of discrete angles to map to
+
+    Returns
+    -------
+    Orientation angles in discrete values
+    """
     angles = [((n + 1) * np.pi) / N for n in range(N - 1)]
 
     Ori_abs = np.abs(Ori)
@@ -174,6 +180,19 @@ def discrete_ori(Ori, N):
 
 
 def discrete_angle(pos, N):
+    """
+    Maps continuous position angle to N discrete angle values.
+    Used for discretizing the angle between the user terminal and the base station.
+    Assumes the base station is placed in origo.
+    Parameters
+    ----------
+    pos : position of user terminal
+    N : number of discrete angles to map to
+
+    Returns
+    -------
+    Discrete position angles of the user terminal relative to the base station
+    """
     Angle = np.arctan2(pos[1, :], pos[0, :])
     # Angle: [0 deg, 360 deg] in radians
     Angle[Angle < 0] += 2 * np.pi
@@ -193,6 +212,20 @@ def discrete_angle(pos, N):
 
 
 def discrete_dist(pos, N, r_lim):
+    """
+    Maps continuous distances to N discrete distances given by concentric circles.
+    Used to discretize the distance between the user terminal and the base station.
+    Assumes the base station is placed in origo.
+    Parameters
+    ----------
+    pos : Continuous positions as x-, y-coordinates
+    N : Number of discrete distances to map to.
+    r_lim : Range of the base stations signals
+
+    Returns
+    -------
+
+    """
     pos_norm = np.linalg.norm(pos[0:2, :], axis=0)
     base = int(r_lim / N)
     return (base * np.round(pos_norm / base)).astype(int)
@@ -271,101 +304,6 @@ def create_pos_log(case, para, pos_log_name):
     scio.savemat("Data_sets/" + pos_log_name, {"pos_log": pos_log, "scenarios": scenarios})
 
 
-def quadriga_simulation(multi_user, ENGINE, pos_log_name, data_name, para):
-    """
-    Generates parameters for the channel model.
-    Parameters are generated from Quadriga simulations.
-    Either a MATLAB or Octave engine is used to run simulations.
-
-    :param RUN: Bool to determine if load from files or run simulation
-    :param ENGINE: Which engine to use for simulations. "MATLAB" or "Octave"
-    :param pos_log_name: Name of data file containing positions and scenarios eg: "data_pos.mat"
-    :param data_name: Name of data file containing parameters/coefficients from simulations eg: "data.mat"
-    :param para: List of simulation settings/parameters used in the simulations
-    :return:
-    """
-    [fc, N, M, r_lim, sample_period, scenarios] = para
-
-    if ENGINE == "octave":
-        try:
-            from oct2py import octave
-
-        except ModuleNotFoundError:
-            raise
-
-        except OSError:
-            raise OSError("'octave-cli' hasn't been added to path environment")
-
-        print("Creating new data - octave")
-
-        # Add Quadriga folder to octave path
-        octave.addpath(octave.genpath(f"{os.getcwd()}/Quadriga"))
-
-        # Run the scenario to get the simulated channel parameters
-        if multi_user:
-            if octave.get_data_multi_user(fc, pos_log_name, data_name, ENGINE):
-                try:
-                    simulation_data = scio.loadmat("Data_sets/" + data_name)
-                    simulation_data = simulation_data["output"]
-                except FileNotFoundError:
-                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
-            else:
-                raise Exception("Something went wrong")
-        else:
-            if octave.get_data(fc, pos_log_name, data_name, ENGINE):
-                try:
-                    simulation_data = scio.loadmat("Data_sets/" + data_name)
-                    simulation_data = simulation_data["output"]
-                except FileNotFoundError:
-                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
-            else:
-                raise Exception("Something went wrong")
-
-    elif ENGINE == "MATLAB":
-        try:
-            import matlab.engine
-            print("Creating new data - MATLAB")
-
-        except ModuleNotFoundError:
-            raise Exception("You don't have matlab.engine installed")
-
-        # start MATLAB engine
-        eng = matlab.engine.start_matlab()
-
-        # Add Quadriga folder to path
-        eng.addpath(eng.genpath(f"{os.getcwd()}/Quadriga"))
-
-        if multi_user:
-            if eng.get_data_multi_user(fc, pos_log_name, data_name, ENGINE):
-                try:
-                    simulation_data = scio.loadmat("Data_sets/" + data_name)
-                    simulation_data = simulation_data["output"]
-
-                except FileNotFoundError:
-                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
-
-            else:
-                raise Exception("Something went wrong")
-        else:
-            if eng.get_data(fc, pos_log_name, data_name, ENGINE):
-                try:
-                    simulation_data = scio.loadmat("Data_sets/" + data_name)
-                    simulation_data = simulation_data["output"]
-
-                except FileNotFoundError:
-                    raise FileNotFoundError(f"Data file {data_name} not loaded correctly")
-            else:
-                raise Exception("Something went wrong")
-
-        eng.quit()
-
-    else:
-        raise Exception("ENGINE name is incorrect")
-
-    return simulation_data
-
-
-
 def load_data(pos_log_name, data_name):
     """
     Loads parameters from earlier simulations.
@@ -401,7 +339,7 @@ def quadriga_simulation(multi_user, ENGINE, pos_log_name, data_name, para):
     Parameters are generated from Quadriga simulations.
     Either a MATLAB or Octave engine is used to run simulations.
 
-    :param RUN: Bool to determine if load from files or run simulation
+    :param multi_user: Bool to determine if simulation should use multiple user terminals
     :param ENGINE: Which engine to use for simulations. "MATLAB" or "Octave"
     :param pos_log_name: Name of data file containing positions and scenarios eg: "data_pos.mat"
     :param data_name: Name of data file containing parameters/coefficients from simulations eg: "data.mat"
