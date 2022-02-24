@@ -8,12 +8,12 @@ function done = get_data_multi_user(fc, pos_log, name, ENGINE, scenarios)
     end
     
     load(strcat("Data_sets/", pos_log));
-%     pos_bs = cell2mat(pos_log(1));
-%     pos_log = pos_log(2:end);
+    %     pos_bs = cell2mat(pos_log(1));
+    %     pos_log = pos_log(2:end);
     
     % Get the length of the different matrices/vectors
-%     sb = size(pos_bs);          % Number of base stations
-    sp = length(pos_log);       % Number of users
+    %     sb = size(pos_bs);          % Number of base stations
+    sp = size(pos_log, 1);               % Number of users
     sc = size(scenarios);
      
     l = qd_layout;                                          % Create new QuaDRIGa layout
@@ -22,20 +22,20 @@ function done = get_data_multi_user(fc, pos_log, name, ENGINE, scenarios)
     l.simpar.show_progress_bars = 1;                        % Disable progress bars
     
     l.tx_position = [0, 0, 10]';
-
-
-%     % Create the base stations
-%     l.no_tx = sb(2);
-%     for i = 1:sb(2)
-%         l.tx_position(:, i) = [pos_bs(1, i), pos_bs(2, i), 10]';     
-%     end
+    
+    
+    %     % Create the base stations
+    %     l.no_tx = sb(2);
+    %     for i = 1:sb(2)
+    %         l.tx_position(:, i) = [pos_bs(1, i), pos_bs(2, i), 10]';     
+    %     end
     
     % Create the users
     
     l.rx_track = qd_track();
     l.no_rx = sp;
     for i = 1:sp
-        pos_log_mat = cell2mat(pos_log(i));       % pos_log is currently given as a cell and therefor needs to be converted
+        pos_log_mat = pos_log(i, :, :);       % pos_log is currently given as a cell and therefor needs to be converted
         l.rx_track(1, i).scenario = strtrim(scenarios(1, :));             % Set propagation scenario
     
         l.rx_track(1, i).positions=squeeze(pos_log_mat);   % Set start position and MT height

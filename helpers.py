@@ -333,7 +333,7 @@ def load_data(pos_log_name, data_name):
     return tmp, pos_log
 
 
-def quadriga_simulation(multi_user, ENGINE, pos_log_name, data_name, para):
+def quadriga_simulation(ENGINE, pos_log_name, data_name, para, multi_user):
     """
     Generates parameters for the channel model.
     Parameters are generated from Quadriga simulations.
@@ -346,7 +346,7 @@ def quadriga_simulation(multi_user, ENGINE, pos_log_name, data_name, para):
     :param para: List of simulation settings/parameters used in the simulations
     :return:
     """
-    [fc, N, M, r_lim, sample_period, scenarios] = para
+    [fc, scenarios] = para
 
     if ENGINE == "octave":
         try:
@@ -365,7 +365,7 @@ def quadriga_simulation(multi_user, ENGINE, pos_log_name, data_name, para):
 
         # Run the scenario to get the simulated channel parameters
         if multi_user:
-            if octave.get_data_multi_user(fc, pos_log_name, data_name, ENGINE):
+            if octave.get_data_multi_user(fc, pos_log_name, data_name, ENGINE, scenarios):
                 try:
                     simulation_data = scio.loadmat("Data_sets/" + data_name)
                     simulation_data = simulation_data["output"]
@@ -374,7 +374,7 @@ def quadriga_simulation(multi_user, ENGINE, pos_log_name, data_name, para):
             else:
                 raise Exception("Something went wrong")
         else:
-            if octave.get_data(fc, pos_log_name, data_name, ENGINE):
+            if octave.get_data(fc, pos_log_name, data_name, ENGINE, scenarios):
                 try:
                     simulation_data = scio.loadmat("Data_sets/" + data_name)
                     simulation_data = simulation_data["output"]
@@ -398,7 +398,7 @@ def quadriga_simulation(multi_user, ENGINE, pos_log_name, data_name, para):
         eng.addpath(eng.genpath(f"{os.getcwd()}/Quadriga"))
 
         if multi_user:
-            if eng.get_data_multi_user(fc, pos_log_name, data_name, ENGINE):
+            if eng.get_data_multi_user(fc, pos_log_name, data_name, ENGINE, scenarios):
                 try:
                     simulation_data = scio.loadmat("Data_sets/" + data_name)
                     simulation_data = simulation_data["output"]
@@ -409,7 +409,7 @@ def quadriga_simulation(multi_user, ENGINE, pos_log_name, data_name, para):
             else:
                 raise Exception("Something went wrong")
         else:
-            if eng.get_data(fc, pos_log_name, data_name, ENGINE):
+            if eng.get_data(fc, pos_log_name, data_name, ENGINE, scenarios):
                 try:
                     simulation_data = scio.loadmat("Data_sets/" + data_name)
                     simulation_data = simulation_data["output"]

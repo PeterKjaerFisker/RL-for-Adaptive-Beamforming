@@ -18,7 +18,7 @@ cmd_input = sys.argv
 if len(cmd_input) > 1:
     SETTING = sys.argv[1]
 else:
-    SETTING = "Thing_01"
+    SETTING = "Fisker_test_01"
 
 # %% main
 if __name__ == "__main__":
@@ -74,8 +74,16 @@ if __name__ == "__main__":
     # ----------- Extract data from Quadriga simulation -----------
     print("Extracting data", flush=True)
     AoA_Global = channel_par[0][0]  # Angle of Arrival in Global coord. system
+    for i in range(len(AoA_Global)):
+        AoA_Global[i][0] = np.squeeze(AoA_Global[i][0])
+
     AoD_Global = channel_par[1][0]  # Angle of Departure in Global coord. system
+    for i in range(len(AoD_Global)):
+        AoD_Global[i][0] = np.squeeze(AoD_Global[i][0])
+
     coeff = channel_par[2][0]  # Channel Coefficients
+    for i in range(len(coeff)):
+        coeff[i][0] = np.squeeze(coeff[i][0])
     Orientation = channel_par[3][0]  # Orientation in Global coord. system
 
     if CASE == 'pedestrian':
