@@ -162,6 +162,24 @@ def directivity(save, W, N, title):
 
 
 def positions(save, pos_log, r_lim):
+    """
+    Plots the paths given by the poslog as lines, and plots the circle
+    containing these paths
+
+    Parameters
+    ----------
+    save : Bool
+        Whether to save the generated figure as pdf in the Figures folder
+    pos_log : MATRIX
+        Matrix of positions with rows being episodes and columns being time steps
+    r_lim : FLOAT/INT
+        The radius of the circle which the paths are restricted to
+
+    Returns
+    -------
+    None.
+
+    """
     fig, ax = plt.subplots()
     ax.set_title("Random Walk")
     ax.set_ylabel("Distance from transmitter [m]")

@@ -13,6 +13,25 @@ import helpers
 # %% Track
 class Track():
     def __init__(self, case, delta_t, r_lim):
+        """
+        Initialize an instance of the track class, which creates implement the
+        mobility model from 'Smooth is better than sharp: a random mobility
+        model for simulation of wireless networks'
+
+        Parameters
+        ----------
+        case : String
+            File containing a mobility pattern to generate paths from, ie. 'car_highway', 'car_urban' and 'pedestrian'
+        delta_t : Float
+            Sample period for position, etc.
+        r_lim : Float
+            Maximum radius of the cell, which the moving unit will restricted to stay within
+
+        Returns
+        -------
+        None.
+
+        """
         self.delta_t = delta_t
         self.env = case["environment"]
         self.vpref = case["vpref"]
@@ -42,11 +61,36 @@ class Track():
         self.radius_limit = r_lim
 
     def set_acceleration(self, acc):
+        """
+        Calculate a velocity to accelerate/decelerate to the target velocity
+        with
+
+        Parameters
+        ----------
+        acc : Bool
+            True if acceleration should occur otherwise False for deceleration
+
+        Returns
+        -------
+        Float
+            Acceleration/decelration value
+
+        """
         if acc:
             return np.random.rand() * self.acc_max + 0.00001
         return - (np.random.rand() * self.dec_max + 0.00001)
 
     def change_velocity(self):
+        """
+        Calculates wheter a velocity change event should take place, and if
+        what the new target speed is
+
+        Returns
+        -------
+        Float
+            Target velocity
+
+        """
         p_uni = np.random.rand()
         p_pref = self.pvpref[0]
         l_pref = len(self.pvpref)
@@ -64,6 +108,20 @@ class Track():
         return np.random.rand() * (self.vmax - self.vmin) + self.vmin
 
     def update_velocity(self, v):
+        """
+        Calculate the velocity the mobile unit should move at
+
+        Parameters
+        ----------
+        v : Float
+            Mobile terminals current velocity
+
+        Returns
+        -------
+        v : Float
+            The velocity the mobile terminal should move at
+
+        """
         if np.random.rand() < self.pvchange:
             self.v_target = self.change_velocity()
 
@@ -86,6 +144,22 @@ class Track():
         return v
 
     def update_direction(self, phi, v):
+        """
+        Find the direction the mobile unit should point in
+
+        Parameters
+        ----------
+        phi : Float
+            Current direction
+        v : Float
+            Speed
+
+        Returns
+        -------
+        phi : Float
+            Direction after having rotated
+
+        """
         # "Stop-turn-and-go" implemented here
         if v == 0:
             # Only changes the target delta phi once
@@ -155,6 +229,24 @@ class Track():
         return phi
 
     def update_pos(self, pos, v, phi):
+        """
+        Finds the next position by moving at speed v in direction phi
+
+        Parameters
+        ----------
+        pos : Array
+            x and y values of current position
+        v : Float
+            The speed at which the mobile unit moves
+        phi : Float
+            The direction the mobile unit moves
+
+        Returns
+        -------
+        pos : Array
+            x and y positions after having moved
+
+        """
         # x-axis
         pos[0] = pos[0] + np.cos(phi) * v * self.delta_t
 
@@ -164,6 +256,20 @@ class Track():
         return pos
 
     def angle_overflow(self, phi):
+        """
+        Restricts the angle from -pi to pi, by wraping around this interval
+
+        Parameters
+        ----------
+        phi : Float
+            Angle to be checked
+
+        Returns
+        -------
+        phi : Float
+            Angle in the interval (-pi;pi)
+
+        """
         # Checks for overflow
         if phi > np.pi:
             phi -= 2 * np.pi
@@ -173,6 +279,19 @@ class Track():
         return phi
 
     def initialise_run(self):
+        """
+        Initialize parameters for the mobility model
+
+        Returns
+        -------
+        v : Float
+            Speed which the mobile unit starts with
+        phi : Float
+            Angle which the mobile unit points at the start
+        pos : Array
+            x and y positions the track starts at
+
+        """
         # Velocity
         self.v_target = self.change_velocity()
         v = self.v_target
@@ -216,6 +335,20 @@ class Track():
         return v, phi, pos
 
     def run(self, N):
+        """
+        Generate a single track of a certain number of steps
+
+        Parameters
+        ----------
+        N : Int
+            Number of steps, ie. descrete positions, the track consists of
+
+        Returns
+        -------
+        pos : Array
+            Array of positions in cartesian coordinates
+
+        """
         # Create a empty array for the velocities
         v = np.zeros([N])
         phi = np.zeros([N])
@@ -253,6 +386,29 @@ class Track():
 class Environment():
     def __init__(self, W, F, Nt, Nr,
                  fc, P_t):
+        """
+        Initialize the propagation environment
+
+        Parameters
+        ----------
+        W : Matrix
+            Combiner codebook
+        F : Matrix
+            Precoder codebook
+        Nt : Int
+            Numbers of transmitter antennas
+        Nr : Int
+            Number of receiver antennas
+        fc : Float
+            Center frequency of the signal being sent
+        P_t : Float
+            Transmission power
+
+        Returns
+        -------
+        None.
+
+        """
         self.AoA = 0
         self.AoD = 0
         self.Beta = 0
@@ -264,6 +420,18 @@ class Environment():
         self.P_t = P_t
 
     def _get_reward(self, stepnr, action):
+        """
+        The same as take_action except this one does all the work
+
+        Parameters
+        ----------
+        same
+
+        Returns
+        -------
+        same
+
+        """
         # Calculate steering vectors for transmitter and receiver
         alpha_rx = helpers.steering_vectors2d(direction=-1, theta=self.AoA[stepnr, :],
                                               N=self.Nr, lambda_=self.lambda_)
@@ -286,11 +454,51 @@ class Environment():
         return np.max(R[:, action]), np.max(R), np.min(np.max(R, axis=0)), np.mean(np.max(R, axis=0))
 
     def take_action(self, stepnr, action):
+        """
+        Calculates the reward (signal strength) maximum achievable reward,
+        minimum achievable reward and average reward based on an action
+
+        Parameters
+        ----------
+        stepnr : Int
+            Time step number
+        action : Int
+            Beam number
+
+        Returns
+        -------
+        reward : Int
+            The reward for the chosen action
+        max_reward : Int
+            The maximum achievable reward
+        min_reward : Int
+            The minimum achievable reward
+        mean_reward : Int
+            The average reward
+
+        """
         reward, max_reward, min_reward, mean_reward = self._get_reward(stepnr, action)
 
         return reward, max_reward, min_reward, mean_reward
 
     def update_data(self, AoA, AoD, Beta):
+        """
+        Updates the environment information
+
+        Parameters
+        ----------
+        AoA : TYPE
+            Angle of arrival
+        AoD : TYPE
+            Angle of depature
+        Beta : TYPE
+            Channel parameters
+
+        Returns
+        -------
+        None.
+
+        """
         self.AoA = AoA
         self.AoD = AoD
         self.Beta = Beta
@@ -299,12 +507,49 @@ class Environment():
 # %% State Class
 class State:
     def __init__(self, intial_state, orientation_flag=False, distance_flag=False, location_flag=False):
+        """
+        Initiate the state object, containing the current state
+
+        Parameters
+        ----------
+        intial_state : Array
+            The form the state takes
+        orientation_flag : Bool, optional
+            Whether orientation is included in the state. The default is False.
+        distance_flag : Bool, optional
+            Whether distance is included in the state. The default is False.
+        location_flag : Bool, optional
+            Whether location is included in the state. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
         self.state = intial_state
         self.orientation_flag = orientation_flag
         self.distance_flag = distance_flag
         self.location_flag = location_flag
 
     def build_state(self, action, para=[None, None, None], retning=None):
+        """
+        Builds a state object, in accordance with what is included in the state
+
+        Parameters
+        ----------
+        action : Int
+            The action for inclusion in the state.
+        para : Arra, optional
+            Distance, orientaion and angle for possible inclusion in the state. The default is [None, None, None].
+        retning : Int, optional
+            Retning of the chosen action for possible inclusion in the state. The default is None.
+
+        Returns
+        -------
+        list
+            A state
+
+        """
         dist, ori, angle = para
 
         if retning is not None:
@@ -337,6 +582,27 @@ class State:
 # %% Agent Class
 class Agent:
     def __init__(self, action_space, alpha=["constant", 0.7], eps=0.1, gamma=0.7, c=200):
+        """
+        Initiate a reinforcement learning agent
+
+        Parameters
+        ----------
+        action_space : Array
+            All possible actions
+        alpha : Float, optional
+            Learning rate, options are 'constant' and '1/n'. The default is ["constant", 0.7].
+        eps : Float, optional
+            Probability of choosing random action for epsilon greedy policy. The default is 0.1.
+        gamma : Float, optional
+            Forgetting factor. The default is 0.7.
+        c : Float, optional
+            c value for UCB, balances exploration. The default is 200.
+
+        Returns
+        -------
+        None.
+
+        """
         self.action_space = action_space  # Number of beam directions
         self.alpha_start = alpha[1]
         self.alpha_method = alpha[0]
@@ -439,6 +705,24 @@ class Agent:
             return np.random.choice(self.action_space)
 
     def get_action_list_adj(self, last_action, Nlayers):
+        """
+        Calculate the beam numbers of adjecent beams
+
+        Parameters
+        ----------
+        last_action : Int
+            The beam number of the current beam
+        Nlayers : Int
+            Number of layers, for restricting avaliable actions
+
+        Returns
+        -------
+        actions : List
+            List of beam numbers for adjecent beams
+        dir_list : Array
+            Array of directions avaliable at current beam
+
+        """
         current_layer = int(np.floor(np.log2(last_action + 2)))  # Wrap around for left/right
 
         # Check if the codeword to the "right" is still in the same layer
@@ -480,6 +764,27 @@ class Agent:
         return actions, dir_list
 
     def greedy_adj(self, state, last_action, Nlayers):
+        """
+        Calculates the optimal action according to the greedy policy
+        when actions are restricted to choosing adjecent beams
+
+        Parameters
+        ----------
+        state : Array
+            The state
+        last_action : Int
+            The number of the last chosen beam, to calculate adjecent beams
+        Nlayers : Int
+            Numbers of layers in the hierarchical codebook, to calculate when to limit actions
+
+        Returns
+        -------
+        next_action : Int
+            Beam number the action corresponds to
+        next_dir : Int
+            Which direction was chosen
+
+        """
 
         actions, dir_list = self.get_action_list_adj(last_action, Nlayers)
 
@@ -497,6 +802,27 @@ class Agent:
         return next_action, next_dir
 
     def e_greedy_adj(self, state, last_action, Nlayers):
+        """
+        Calculates the optimal action according to the epsilon greedy policy
+        when actions are restricted to choosing adjecent beams
+
+        Parameters
+        ----------
+        state : Array
+            The state
+        last_action : Int
+            The number of the last chosen beam, to calculate adjecent beams
+        Nlayers : Int
+            Numbers of layers in the hierarchical codebook, to calculate when to limit actions
+
+        Returns
+        -------
+        next_action : Int
+            Beam number the action corresponds to
+        next_dir : Int
+            Which direction was chosen
+
+        """
         if np.random.random() > self.eps:
             next_action, next_dir = self.greedy_adj(state, last_action, Nlayers)
         else:

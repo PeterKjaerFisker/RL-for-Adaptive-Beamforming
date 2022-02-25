@@ -203,8 +203,8 @@ if __name__ == "__main__":
         State = classes.State(State_tmp, ORI, DIST, LOCATION)
 
         # Initiate the action
-        action = np.random.choice(action_space)
-        retning = np.random.randint(0, 3) - 1
+        action = np.random.choice(action_space) # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
+        retning = np.random.randint(0, 3) - 1   # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
 
         # TODO første action skal afhænge af initial state
 
@@ -212,6 +212,7 @@ if __name__ == "__main__":
         # Run the episode
         for n in range(chunksize):
 
+            # Update the current state
             # Check if the user terminal orientation is part of the state.
             if ORI:
                 # Get the current discrete orientation of the user terminal
@@ -246,15 +247,19 @@ if __name__ == "__main__":
             current_state_parameters = [dist, ori, angle]
             next_state_parameters = [next_dist, next_ori, next_angle]
 
+            # Calculate the action
             if ADJ:
                 State.state = State.build_state(action, current_state_parameters, retning)
-                action, retning = Agent.e_greedy_adj(helpers.state_to_index(State.state), action, Nlr)
+                action, retning = Agent.e_greedy_adj(helpers.state_to_index(State.state), action, Nlr) # TODO måske ændre sidste output til "limiting factors"
             else:
                 State.state = State.build_state(action, current_state_parameters)
                 action = Agent.e_greedy(helpers.state_to_index(State.state))
 
+            # Get reward from performing action
             R, R_max, R_min, R_mean = Env.take_action(n, action)
 
+
+            # Update Q-table
             if METHOD == "simple":
                 Agent.update_simple(helpers.state_to_index(State.state), action, R)
 
