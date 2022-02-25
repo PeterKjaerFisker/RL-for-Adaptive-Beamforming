@@ -31,6 +31,11 @@ def load_pickle(path_to_pickle, filename):
     return data
 
 
+def state_to_index(state):
+    return tuple([tuple(state[0]), tuple(state[1]),
+                  tuple(state[2]), tuple(state[3])])
+
+
 def steering_vectors2d(direction, theta, N, lambda_):
     """
     Calculates the steering vector for a Standard ULA, with given antenna positions

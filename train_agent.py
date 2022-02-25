@@ -18,12 +18,12 @@ cmd_input = sys.argv
 if len(cmd_input) > 1:
     SETTING = sys.argv[1]
 else:
-    SETTING = "Fisker_test_01"
+    SETTING = "Thing_01"
 
 # %% main
 if __name__ == "__main__":
 
-    # Load Settings for simulation    
+    # Load Settings for simulation
     with open(f'Settings/{SETTING}.json', 'r') as fs:
         setting = json.load(fs)
 
@@ -84,6 +84,7 @@ if __name__ == "__main__":
     coeff = channel_par[2][0]  # Channel Coefficients
     for i in range(len(coeff)):
         coeff[i][0] = np.squeeze(coeff[i][0])
+
     Orientation = channel_par[3][0]  # Orientation in Global coord. system
 
     if CASE == 'pedestrian':
@@ -96,13 +97,13 @@ if __name__ == "__main__":
     # Preallocate empty arrays
     AoA_Local = []
 
-    # Calculate DFT-codebook - Transmitter
+    # Calculate hierarchical-codebook - Transmitter
     precoder_codebook = helpers.codebook(Nt, Nlt, lambda_)
 
-    # Calculate DFT-codebook - Receiver
+    # Calculate hierarchical-codebook - Receiver
     combiner_codebook = helpers.codebook(Nr, Nlr, lambda_)
 
-    # Calculate the AoA in the local coordinate system
+    # Calculate the AoA in the local coordinate system of the user terminal
     for m in range(M):
         AoA_Local.append(helpers.get_local_angle(AoA_Global[m][0], Orientation[m][0][2, :]))
 
@@ -111,10 +112,17 @@ if __name__ == "__main__":
     Env = classes.Environment(combiner_codebook, precoder_codebook, Nt, Nr,
                               fc, P_t)
 
-    # Create action space
+    # Initialize all possible actions for the Agent
     action_space = np.arange(Nbeam_tot)
 
-    # Create the discrete orientation if ORI is true
+    """
+    Based on the settings for the simulation, different components used in the State 
+    are calculated as needed. 
+    - If the user terminal (UT) orientation is used, the orientation data from Quadriga is discretized and saved.
+    - If either the distance between UT and BS or the location of the UT is used
+      the distance between the UT and the BS is calculated from UT position data and discretized.
+    - If the location of the UT is used, the angle to the UT in relation to the BS is calculated and discretized.  
+    """
     if ORI:
         ori_discrete = np.zeros([M, N])
         for m in range(M):
@@ -137,6 +145,8 @@ if __name__ == "__main__":
         angle_discrete = None
 
     # ----------- Starts the simulation -----------
+
+    # Initializing arrays for logs.
     action_log = np.zeros([Episodes, chunksize])
     R_log = np.zeros([Episodes, chunksize])
     R_max_log = np.zeros([Episodes, chunksize])
@@ -146,28 +156,21 @@ if __name__ == "__main__":
     Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
 
     for episode in tqdm(range(Episodes), desc="Episodes"):
+        """
+        For each episode we first initialize a random State to begin in. 
+        Depending on the settings for the simulation, different elements are added to the State. 
+        - If the distance or the location is used, the first elements from the discretized data are 
+          added to the State, as random initial values. 
+        - If the orientation is used, a list of random orientations are drawn and added to the State. 
+          The amount of orientations drawn depends on the settings.  
+
+        We then choose a track from the data set at random and similarly choose a random starting
+        point in the chosen track. 
+        The Environment is then updated with the relevant AoA, AoD and channel parameter data.  
+        We then go through each position in the track, takes an action, gets a reward and updates the Q-table.
+        """
         # Create the Agent
         # Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
-
-        # Initiate the State at a random beam sequence
-        State_tmp = [list(np.random.randint(0, Nbeam_tot, n_actions))]
-
-        if DIST or LOCATION:
-            State_tmp.append(list([dist_discrete[0]]))
-        else:
-            State_tmp.append(["N/A"])
-
-        if ORI:
-            State_tmp.append(list(np.random.randint(0, ori_res, n_ori)))
-        else:
-            State_tmp.append(["N/A"])
-
-        if LOCATION:
-            State_tmp.append(list([angle_discrete[0]]))
-        else:
-            State_tmp.append(["N/A"])
-
-        State = classes.State(State_tmp)
 
         # Choose data
         path_idx = np.random.randint(0, M)
@@ -178,6 +181,27 @@ if __name__ == "__main__":
                         AoD_Global[path_idx][0][data_idx:data_idx + chunksize],
                         coeff[path_idx][0][data_idx:data_idx + chunksize])
 
+        # Initiate the State at a random beam sequence
+        # TODO dette skal ikke blot være beams men én beam og et antal tidligere "retninger"
+        State_tmp = [list(np.random.randint(0, Nbeam_tot, n_actions))]
+
+        if DIST or LOCATION:
+            State_tmp.append(list([dist_discrete[0][0]]))
+        else:
+            State_tmp.append(["N/A"])
+
+        if ORI:
+            State_tmp.append(list(np.random.randint(0, ori_res, n_ori)))
+        else:
+            State_tmp.append(["N/A"])
+
+        if LOCATION:
+            State_tmp.append(list([angle_discrete[0][0]]))
+        else:
+            State_tmp.append(["N/A"])
+
+        State = classes.State(State_tmp, ORI, DIST, LOCATION)
+
         # Initiate the action
         action = np.random.choice(action_space)
         retning = np.random.randint(0, 3) - 1
@@ -187,63 +211,74 @@ if __name__ == "__main__":
         end = False
         # Run the episode
         for n in range(chunksize):
+
+            # Check if the user terminal orientation is part of the state.
             if ORI:
+                # Get the current discrete orientation of the user terminal
                 ori = int(ori_discrete[path_idx, data_idx + n])
+                # Check if current step is the last step in episode.
+                # If not the last step, the next orientation of the user terminal is assigned to a variable
                 if n < chunksize - 1:
                     next_ori = int(ori_discrete[path_idx, data_idx + n + 1])
             else:
-                ori = None
-                next_ori = None
+                ori = "N/A"
+                next_ori = "N/A"
 
             if DIST or LOCATION:
                 dist = dist_discrete[path_idx, data_idx + n]
                 if n < chunksize - 1:
                     next_dist = dist_discrete[path_idx, data_idx + n + 1]
             else:
-                dist = None
-                next_dist = None
+                dist = "N/A"
+                next_dist = "N/A"
 
             if LOCATION:
                 angle = angle_discrete[path_idx, data_idx + n]
                 if n < chunksize - 1:
                     next_angle = angle_discrete[path_idx, data_idx + n + 1]
             else:
-                angle = None
-                next_angle = None
+                angle = "N/A"
+                next_angle = "N/A"
 
             if n == chunksize - 1:
                 end = True
 
-            para = [dist, ori, angle]
-            para_action = [next_dist, ori, angle]
-            para_next = [next_dist, next_ori, next_angle]
+            current_state_parameters = [dist, ori, angle]
+            next_state_parameters = [next_dist, next_ori, next_angle]
 
             if ADJ:
-                State.update_state(action, para=para, retning=retning)
-                action, retning = Agent.e_greedy_adj(State.get_state(para=para), action, Nlr)
+                State.state = State.build_state(action, current_state_parameters, retning)
+                action, retning = Agent.e_greedy_adj(helpers.state_to_index(State.state), action, Nlr)
             else:
-                State.update_state(action, para=para)
-                action = Agent.e_greedy(State.get_state(para=para))
+                State.state = State.build_state(action, current_state_parameters)
+                action = Agent.e_greedy(helpers.state_to_index(State.state))
 
             R, R_max, R_min, R_mean = Env.take_action(n, action)
 
             if METHOD == "simple":
-                Agent.update_simple(State, action, R, para=para)
+                Agent.update_simple(helpers.state_to_index(State.state), action, R)
+
             elif METHOD == "SARSA":
                 if ADJ:
-                    next_action = Agent.e_greedy_adj(State.get_nextstate(action,
-                                                                         para_next=para_action), action, Nlr)
+                    next_state = State.build_state(action, next_state_parameters, retning)
+                    next_action = Agent.e_greedy_adj(helpers.state_to_index(next_state), action, Nlr)
                 else:
-                    next_action = Agent.e_greedy(State.get_nextstate(action,
-                                                                     para_next=para_action))
-                Agent.update_sarsa(R, State, action,
-                                   next_action,
-                                   para_next=para_next, end=end)
+                    next_state = State.build_state(action, next_state_parameters)
+                    next_action = Agent.e_greedy(helpers.state_to_index(next_state))
+
+                Agent.update_TD(State, action, R, next_state, next_action, end=end)
+
+            elif METHOD == "Q-LEARNING":
+                if ADJ:
+                    next_state = State.build_state(action, next_state_parameters, retning)
+                    next_action = Agent.greedy_adj(helpers.state_to_index(next_state), action, Nlr)
+                else:
+                    next_state = State.build_state(action, next_state_parameters)
+                    next_action = Agent.greedy(helpers.state_to_index(next_state))
+
+                Agent.update_TD(State, action, R, next_state, next_action, end=end)
             else:
-                Agent.update_Q_learning(R, State, action, Nlr,
-                                        para_next=para_next,
-                                        adj=ADJ, end=end)
-                METHOD = "Q-LEARNING"
+                raise Exception("Method not recognized")
 
             action_log[episode, n] = action
             R_log[episode, n] = R

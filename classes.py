@@ -298,10 +298,13 @@ class Environment():
 
 # %% State Class
 class State:
-    def __init__(self, intial_state):
+    def __init__(self, intial_state, orientation_flag=False, distance_flag=False, location_flag=False):
         self.state = intial_state
+        self.orientation_flag = orientation_flag
+        self.distance_flag = distance_flag
+        self.location_flag = location_flag
 
-    def update_state(self, action, para=[None, None, None], retning=None):
+    def build_state(self, action, para=[None, None, None], retning=None):
         dist, ori, angle = para
 
         if retning is not None:
@@ -312,72 +315,23 @@ class State:
 
         state_a.append(action)
 
-        if dist is not None:
+        if self.distance_flag or self.location_flag:
             state_d = [dist]
         else:
             state_d = ["N/A"]
 
-        if ori is not None:
+        if self.orientation_flag:
             state_o = self.state[2][1:]
             state_o.append(ori)
         else:
             state_o = ["N/A"]
 
-        if angle is not None:
+        if self.location_flag:
             state_deg = [angle]
         else:
             state_deg = ["N/A"]
 
-        self.state = [state_a, state_d, state_o, state_deg]
-
-    def get_state(self, para=[None, None, None]):
-        dist, ori, angle = para
-        state_a = self.state[0]
-
-        if dist is not None:
-            state_d = self.state[1]
-        else:
-            state_d = ["N/A"]
-
-        if ori is not None:
-            state_o = self.state[2]
-        else:
-            state_o = ["N/A"]
-
-        if angle is not None:
-            state_deg = [angle]
-        else:
-            state_deg = ["N/A"]
-
-        state = tuple([tuple(state_a), tuple(state_d),
-                       tuple(state_o), tuple(state_deg)])
-
-        return state
-
-    def get_nextstate(self, action, para_next=[None, None, None]):
-        dist, ori, angle = para_next
-        next_state_a = self.state[0][1:]
-        next_state_a.append(action)
-
-        if dist is not None:
-            next_state_d = [dist]
-        else:
-            next_state_d = ["N/A"]
-
-        if ori is not None:
-            next_state_o = self.state[2][1:]
-            next_state_o.append(ori)
-        else:
-            next_state_o = ["N/A"]
-
-        if angle is not None:
-            next_state_deg = [angle]
-        else:
-            next_state_deg = ["N/A"]
-
-        next_state = tuple([tuple(next_state_a), tuple(next_state_d),
-                            tuple(next_state_o), tuple(next_state_deg)])
-        return next_state
+        return [state_a, state_d, state_o, state_deg]
 
 
 # %% Agent Class
@@ -554,7 +508,7 @@ class Agent:
 
         return next_action, next_dir
 
-    def update_simple(self, State, action, reward, para):
+    def update_simple(self, state, action, reward):
         """
         Update the Q table for the given state and action based on equation (2.5)
         in the book:
@@ -575,92 +529,39 @@ class Agent:
         None.
 
         """
-        state = State.get_state(para)
 
-        self.Q[state, action] = [(self.Q[state, action][0] + self.alpha[state, action][0] * (reward - self.Q[state, action][0])),
-                                 self.Q[state, action][1] + 1]
+        self.Q[state, action] = [
+            (self.Q[state, action][0] + self.alpha[state, action][0] * (reward - self.Q[state, action][0])),
+            self.Q[state, action][1] + 1]
         self._update_alpha(state, action)
 
-    def update_sarsa(self, R, State, action, next_action, para_next, end=False):
+    def update_TD(self, State, action, R, next_state, next_action, end=False):
         """
-        Update the Q table for the given state and action based on equation (6.7)
-        in the book:
+        Update the Q table for the given state and action based on TD(0).
+        Based on the book:
         Reinforcement Learning - An introduction.
         Second edition by Richard S. Sutton and Andrew G. Barto
-
         Parameters
         ----------
-        R : MATRIX
-            The reward matrix.
-        state : ARRAY
-            Which position on the grid you are standing on (x,y).
-        action : INT
-            The action you are taking.
-        next_action : INT
-            The next action you take.
+        State : State object
+        action : The action (beam number) chosen based on the current state
+        R : The reward
+        next_state :
+        next_action :
+        end :
 
         Returns
         -------
-        None.
 
         """
+        state = helpers.state_to_index(State.state)
+        next_state = helpers.state_to_index(next_state)
         if end is False:
-            next_state = State.get_nextstate(action, para_next)
-            state = State.get_state(para_next)
             next_Q = self.Q[next_state, next_action][0]
-
-            self.Q[state, action] = [self.Q[state, action][0] + self.alpha[state, action][0] *
-                                     (R + self.gamma * next_Q - self.Q[state, action][0]),
-                                     self.Q[state, action][1] + 1]
-            self._update_alpha(state, action)
         else:
-            state = State.get_state(para_next)
             next_Q = 0
 
-            self.Q[state, action] = [self.Q[state, action][0] + self.alpha[state, action][0] *
-                                     (R + self.gamma * next_Q - self.Q[state, action][0]),
-                                     self.Q[state, action][1] + 1]
-            self._update_alpha(state, action)
-
-    def update_Q_learning(self, R, State, action, Nlayers, para_next, adj=False, end=False):
-        """
-        Update the Q table for the given state and action based on equation (6.8)
-        in the book:
-        Reinforcement Learning - An introduction.
-        Second edition by Richard S. Sutton and Andrew G. Barto
-
-        Parameters
-        ----------
-        R : MATRIX
-            The reward matrix.
-        state : ARRAY
-            Which position on the grid you are standing on (x,y).
-        action : INT
-            The action you are taking.
-
-        Returns
-        -------
-        None.
-
-        """
-        if end is False:
-            next_state = State.get_nextstate(action, para_next)
-            state = State.get_state(para_next)
-            if adj:
-                next_action = self.greedy_adj(next_state, action, Nlayers)
-            else:
-                next_action = self.greedy(next_state)
-            next_Q = self.Q[next_state, next_action][0]
-
-            self.Q[state, action] = [self.Q[state, action][0] + self.alpha[state, action][0] *
-                                     (R + self.gamma * next_Q - self.Q[state, action][0]),
-                                     self.Q[state, action][1] + 1]
-            self._update_alpha(state, action)
-        else:
-            state = State.get_state(para_next)
-            next_Q = 0
-
-            self.Q[state, action] = [self.Q[state, action][0] + self.alpha[state, action][0] *
-                                     (R + self.gamma * next_Q - self.Q[state, action][0]),
-                                     self.Q[state, action][1] + 1]
-            self._update_alpha(state, action)
+        self.Q[state, action] = [self.Q[state, action][0] + self.alpha[state, action][0] *
+                                 (R + self.gamma * next_Q - self.Q[state, action][0]),
+                                 self.Q[state, action][1] + 1]
+        self._update_alpha(state, action)

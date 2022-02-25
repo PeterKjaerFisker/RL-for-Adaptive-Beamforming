@@ -9,7 +9,7 @@ cmd_input = sys.argv
 if len(cmd_input) > 1:
     SETTING = sys.argv[1]
 else:
-    SETTING = "Thing_01"
+    SETTING = "Fisker_test_01"
 
 # Load Settings for simulation
 with open(f'Settings/{SETTING}.json', 'r') as fs:
