@@ -179,7 +179,7 @@ class Track():
 
         # Position
         if self.env.lower() == "urban":
-            pos = np.random.uniform(-self.radius_limit / 2, self.radius_limit / 2, size=2)
+            pos = np.random.uniform(-self.radius_limit*np.sqrt(2), self.radius_limit*np.sqrt(2), size=2)
 
         elif self.env.lower() == "highway":
             # Choose a start position on the edge based on a random chosen angle
