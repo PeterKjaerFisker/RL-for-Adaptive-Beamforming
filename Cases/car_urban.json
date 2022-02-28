@@ -4,7 +4,7 @@
     "vmax":             14,
     "vmin":             0,
     "vpref":            [0, 8.3, 14],
-    "pvpref":           [0.3, 0.1, 0.4],
+    "pvpref":           [0.2, 0.15, 0.4],
     "vchange":          50,
     "dirchange":        50,
     "stop_dirchange":   0.33,
