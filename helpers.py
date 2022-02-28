@@ -19,12 +19,45 @@ import plots
 
 # %% Functions
 def dump_pickle(data, path, filename):
+    """
+    Saves a file, containing training results
+
+    Parameters
+    ----------
+    data : Object
+        Object containing the data to be saved
+    path : String
+        Path to where the file should be saved
+    filename : String
+        Name of the file to be saved
+
+    Returns
+    -------
+    None.
+
+    """
     with open(path + filename, 'wb+') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
 
 def load_pickle(path_to_pickle, filename):
+    """
+    Loads the pickle file, containing training results
+
+    Parameters
+    ----------
+    path_to_pickle : String
+        Path to where the file is saved
+    filename : String
+        Name of the file to be loaded
+
+    Returns
+    -------
+    data : Object
+        Object which contains the data from the file
+
+    """
     with open(path_to_pickle + filename, 'rb') as f:
         data = pickle.load(f)
 
@@ -32,6 +65,20 @@ def load_pickle(path_to_pickle, filename):
 
 
 def state_to_index(state):
+    """
+    Turn a state, from the State class, into a tuple for indexing the Q-table
+
+    Parameters
+    ----------
+    state : Array
+        The state to be turned into a tuple
+
+    Returns
+    -------
+    Tuple
+        A tuple containing the state
+
+    """
     return tuple([tuple(state[0]), tuple(state[1]),
                   tuple(state[2]), tuple(state[3])])
 
@@ -237,6 +284,24 @@ def discrete_dist(pos, N, r_lim):
 
 
 def misalignment_prob(R_db, R_max_db, x_db):
+    """
+    Calculate the x-dB misalignment probability
+
+    Parameters
+    ----------
+    R_db : Matrix
+        Measured values
+    R_max_db : Matrix
+        Optimal values to compare against
+    x_db : Float
+        The amount of misalignment to be checked for
+
+    Returns
+    -------
+    Float
+        The x-dB Misaligment probability
+
+    """
     # Create zeros vector with shape of R
     tmp = np.zeros(np.shape(R_db))
 
@@ -249,6 +314,20 @@ def misalignment_prob(R_db, R_max_db, x_db):
 
 
 def noisy_ori(ori_vector):
+    """
+    Adds noise to the orientation according to a normal distribution
+
+    Parameters
+    ----------
+    ori_vector : Matrix
+        Matrix of orientations
+
+    Returns
+    -------
+    new_orientation : Matrix
+        Matrix of noisy orientations
+
+    """
     # "smooting" factor in random walk filter
     K = 21
     new_orientation = np.empty_like(ori_vector)
@@ -282,6 +361,24 @@ def noisy_ori(ori_vector):
 
 
 def create_pos_log(case, para, pos_log_name):
+    """
+    Generate valid tracks of appropriate length. Asks user before finalizing
+    track generation.
+
+    Parameters
+    ----------
+    case : String
+        File containing a mobility pattern to generate paths from, ie. 'car_highway', 'car_urban' and 'pedestrian'
+    para : Array
+        Paremters for length and amount of episodes, cell size, sample period and Quadriga scenario respectively
+    pos_log_name : String
+        Name of the file being saved, which contains the paths
+
+    Returns
+    -------
+    None.
+
+    """
     [N, M, r_lim, sample_period, scenarios] = para
 
     print("Creating track")
