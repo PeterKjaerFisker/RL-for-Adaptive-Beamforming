@@ -301,4 +301,4 @@ if __name__ == "__main__":
         'settings': setting
     }
 
-    helpers.dump_pickle(data, '', '_results.pickle')
+    helpers.dump_pickle(data, '', f'{FILENAME}_results.pickle')

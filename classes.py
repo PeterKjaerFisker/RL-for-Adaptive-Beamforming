@@ -830,7 +830,7 @@ class Agent:
 
             choice = np.random.randint(0, len(dir_list))
             next_action = actions[choice]
-            next_dir = dir_list[choice]  # TODO NO LONGER VALID -1 = Left, 0 = Stay, +1 = Right
+            next_dir = dir_list[choice]
 
         return next_action, next_dir
 

@@ -4,13 +4,25 @@
 """
 # %% Imports
 import numpy as np
+import json
+import sys
 
 import helpers
 import plots
 
-# %% Load pickle
 
-data = helpers.load_pickle('', '_results.pickle')
+cmd_input = sys.argv
+if len(cmd_input) > 1:
+    SETTING = sys.argv[1]
+else:
+    SETTING = "car_urban_LOS_16_users_10000_steps"
+
+# Load Settings for simulation
+with open(f'Settings/{SETTING}.json', 'r') as fs:
+    setting = json.load(fs)
+
+# %% Load pickle
+data = helpers.load_pickle('', f'{setting["FILENAME"]}_results.pickle')
 Agent = data['Agent']
 R_log = data['R_log']
 R_max_log = data['R_max']
@@ -37,6 +49,10 @@ plots.Relative_reward(Save, np.mean(Misalignment_log_dB, axis=0), np.mean(Meanal
 plots.stability(Save, R_log_db, 50)
 
 plots.mean_reward(Save, R_max_log_db, R_mean_log_db, R_min_log_db, R_log_db,
+                  ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
+                  db=True)
+
+plots.mean_reward(Save, R_max_log_db[-4:-3, :], R_mean_log_db[-4:-3, :], R_min_log_db[-4:-3, :], R_log_db[-4:-3, :],
                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
                   db=True)
 
