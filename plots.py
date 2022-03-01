@@ -22,30 +22,28 @@ def stability(save, data, average_window):
                            window of this length
     :return: Nothing
     """
-    est_mean = np.zeros((data.shape[0],data.shape[1]))
+    est_mean = np.zeros((data.shape[0], data.shape[1]))
 
     # Adds copies of the last column to the end of the matrix, and the first column to the start
-    padded_data = np.append(data,np.tile(data[:,-1],(int(np.ceil((average_window-1)/2)),1)).T, axis = 1)
-    padded_data = np.append(np.tile(data[:,0],(int(np.floor((average_window-1)/2)),1)).T, padded_data, axis = 1)
+    padded_data = np.append(data, np.tile(data[:, -1], (int(np.ceil((average_window - 1) / 2)), 1)).T, axis=1)
+    padded_data = np.append(np.tile(data[:, 0], (int(np.floor((average_window - 1) / 2)), 1)).T, padded_data, axis=1)
 
     # Calculate the mean at each point for all episodes
     for step in range(data.shape[1]):
-        est_mean[:,step] = np.mean(padded_data[:,step:(step+average_window)], axis = 1)
-    
-    if save == True:
-        plt.savefig("Figures/Stability.pdf")
-        
+        est_mean[:, step] = np.mean(padded_data[:, step:(step + average_window)], axis=1)
+
     # Calculate the sample variance for each episode and return vector of variances.
-    stability = np.mean((data-est_mean)**2, axis = 1)
-    
+    stability = np.mean((data - est_mean) ** 2, axis=1)
+
     plt.figure()
-    plt.title(f"Stability of episodes ({average_window} avreage window)")
+    plt.title(f"Stability of episodes (Window size: {average_window} samples)")
     plt.plot(stability)
     plt.xlabel("Episode")
     plt.ylabel("Stability")
     if save == True:
-        plt.savefig("Figures/ECDF.pdf")
+        plt.savefig("Figures/Stability.pdf")
     plt.show()
+
 
 def ECDF(save, data):
     """
@@ -87,7 +85,7 @@ def Relative_reward(save, mis_data, mis_mean, mis_min):
     plt.ylabel("Normalized reward")
     if save == True:
         plt.savefig("Figures/Relative_reward.pdf")
-    plt.show
+    plt.show()
 
 
 def mean_reward(save, y1, y2, y3, y4, labels, title,
