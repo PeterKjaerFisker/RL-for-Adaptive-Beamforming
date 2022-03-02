@@ -22,45 +22,51 @@ def stability(save, data, average_window):
                            window of this length
     :return: Nothing
     """
-    est_mean = np.zeros((data.shape[0],data.shape[1]))
+    est_mean = np.zeros((data.shape[0], data.shape[1]))
 
     # Adds copies of the last column to the end of the matrix, and the first column to the start
-    padded_data = np.append(data,np.tile(data[:,-1],(int(np.ceil((average_window-1)/2)),1)).T, axis = 1)
-    padded_data = np.append(np.tile(data[:,0],(int(np.floor((average_window-1)/2)),1)).T, padded_data, axis = 1)
+    padded_data = np.append(data, np.tile(data[:, -1], (int(np.ceil((average_window - 1) / 2)), 1)).T, axis=1)
+    padded_data = np.append(np.tile(data[:, 0], (int(np.floor((average_window - 1) / 2)), 1)).T, padded_data, axis=1)
 
     # Calculate the mean at each point for all episodes
     for step in range(data.shape[1]):
-        est_mean[:,step] = np.mean(padded_data[:,step:(step+average_window)], axis = 1)
-    
-    if save == True:
-        plt.savefig("Figures/Stability.pdf")
-        
+        est_mean[:, step] = np.mean(padded_data[:, step:(step + average_window)], axis=1)
+
     # Calculate the sample variance for each episode and return vector of variances.
-    stability = np.mean((data-est_mean)**2, axis = 1)
-    
+    stability = np.mean((data - est_mean) ** 2, axis=1)
+
     plt.figure()
-    plt.title(f"Stability of episodes ({average_window} avreage window)")
+    plt.title(f"Stability of episodes (Window size: {average_window} samples)")
     plt.plot(stability)
     plt.xlabel("Episode")
     plt.ylabel("Stability")
     if save == True:
-        plt.savefig("Figures/ECDF.pdf")
+        plt.savefig("Figures/Stability.pdf")
     plt.show()
 
-def ECDF(save, data):
+def ECDF(save, data, sections):
     """
     Plots the emperical cumulative distribution function for the x-db
     misalignment
     :param save: Whether to save or only show in IDE
     :param data: Data the misalignment should be found from
+    :param sections: number of ECDFS to render
     :return: Nothing
     """
-    data_len = len(data)
-    data_sorted = np.sort(data)
-    y = np.arange(data_len) / float(data_len)
+    data_len = data.shape[0]
+    section_size = int(np.floor(data_len/sections))
+    
     plt.figure()
     plt.title("x-dB Mis-alignment probability - ECDF")
-    plt.plot(data_sorted, y)
+    
+    for i in range(sections):
+        
+        data_section = np.mean(data[i*section_size:(i+1)*section_size, :], axis=0)
+        data_sorted = np.sort(data_section)
+        y = np.arange(data.shape[1]) / float(data.shape[1])
+        plt.plot(data_sorted, y, label=f'{i*section_size} - {(i+1)*section_size}')
+    
+    plt.legend()
     plt.xlabel("x-dB Mis-alignment")
     plt.ylabel("Probability")
     if save == True:

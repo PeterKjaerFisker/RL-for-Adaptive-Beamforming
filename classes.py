@@ -745,7 +745,7 @@ class Agent:
         # Check if current layer is between the bottom and top layers
         if current_layer != 1 and current_layer != Nlayers:
             actions.append(self.action_space[int(np.floor((last_action - 2) / 2))])  # Down
-            actions.append(self.action_space[int((last_action * 2) + 3)])  # Up Right
+            actions.append(self.action_space[int((last_action * 2) + 3)])  # TODO Up Right TODO måske byt om så ting er i rækkefølge
             actions.append(self.action_space[int((last_action * 2) + 2)])  # Up Left
 
             dir_list = [0, 1, 2, 3, 4, 5]
@@ -790,14 +790,14 @@ class Agent:
 
         choice = np.random.randint(0, len(dir_list))
         next_action = actions[choice]
-        next_dir = dir_list[choice]
-        r_est = self.Q[state, next_action][0]
+        next_dir = dir_list[choice]          
+        r_est = self.Q[state, next_dir][0]
 
-        for idx, last_action in enumerate(actions):
-            if self.Q[state, last_action][0] > r_est:
-                next_action = last_action
-                next_dir = dir_list[choice]
-                r_est = self.Q[state, last_action][0]
+        for idx, last_dir in enumerate(dir_list):
+            if self.Q[state, last_dir][0] > r_est:
+                next_action = last_dir
+                next_dir = dir_list[idx]
+                r_est = self.Q[state, last_dir][0]
 
         return next_action, next_dir
 

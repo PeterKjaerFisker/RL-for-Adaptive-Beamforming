@@ -251,9 +251,11 @@ if __name__ == "__main__":
             if ADJ:
                 State.state = State.build_state(action, current_state_parameters, retning)
                 action, retning = Agent.e_greedy_adj(helpers.state_to_index(State.state), action, Nlr) # TODO måske ændre sidste output til "limiting factors"
+                action_index = retning
             else:
                 State.state = State.build_state(action, current_state_parameters)
                 action = Agent.e_greedy(helpers.state_to_index(State.state))
+                action_index = action
 
             # Get reward from performing action
             R, R_max, R_min, R_mean = Env.take_action(n, action)
@@ -261,31 +263,31 @@ if __name__ == "__main__":
 
             # Update Q-table
             if METHOD == "simple":
-                Agent.update_simple(helpers.state_to_index(State.state), action, R)
+                Agent.update_simple(helpers.state_to_index(State.state), action_index, R)
 
             elif METHOD == "SARSA":
-                if ADJ:
+                if ADJ: # Note that next_action here is a direction index and not a beam number
                     next_state = State.build_state(action, next_state_parameters, retning)
-                    next_action = Agent.e_greedy_adj(helpers.state_to_index(next_state), action, Nlr)
-                else:
+                    next_beam, next_action = Agent.e_greedy_adj(helpers.state_to_index(next_state), action, Nlr)
+                else: # Note that next_action is a beam number and not a direction index
                     next_state = State.build_state(action, next_state_parameters)
                     next_action = Agent.e_greedy(helpers.state_to_index(next_state))
 
-                Agent.update_TD(State, action, R, next_state, next_action, end=end)
+                Agent.update_TD(State, action_index, R, next_state, next_action, end=end)
 
             elif METHOD == "Q-LEARNING":
-                if ADJ:
+                if ADJ: # Note that next_action here is a direction index and not a beam number
                     next_state = State.build_state(action, next_state_parameters, retning)
-                    next_action = Agent.greedy_adj(helpers.state_to_index(next_state), action, Nlr)
-                else:
+                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(next_state), action, Nlr)
+                else: # Note that next_action is a beam number and not a direction index
                     next_state = State.build_state(action, next_state_parameters)
                     next_action = Agent.greedy(helpers.state_to_index(next_state))
 
-                Agent.update_TD(State, action, R, next_state, next_action, end=end)
+                Agent.update_TD(State, action_index, R, next_state, next_action, end=end)
             else:
                 raise Exception("Method not recognized")
 
-            action_log[episode, n] = action
+            action_log[episode, n] = action_index
             R_log[episode, n] = R
             R_max_log[episode, n] = R_max
             R_min_log[episode, n] = R_min
