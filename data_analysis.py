@@ -4,7 +4,6 @@
 """
 # %% Imports
 import numpy as np
-import json
 import sys
 
 import helpers
@@ -12,17 +11,12 @@ import plots
 
 cmd_input = sys.argv
 if len(cmd_input) > 1:
-    SETTING = sys.argv[1]
+    DATA_NAME = sys.argv[1]
 else:
-    # SETTING = "pedestrian_LOS_8_users_20000_steps"
-    SETTING = "car_urban_LOS_16_users_10000_steps"
-
-# Load Settings for simulation
-with open(f'Settings/{SETTING}.json', 'r') as fs:
-    setting = json.load(fs)
+    DATA_NAME = "pedestrian_LOS_sarsa_TTFT_2-2-8-8-16_5000_1000"
 
 # %% Load pickle
-data = helpers.load_pickle('', f'{setting["FILENAME"]}_results.pickle')
+data = helpers.load_pickle('Results/', f'{DATA_NAME}_results.pickle')
 Agent = data['Agent']
 R_log = data['R_log']
 R_max_log = data['R_max']

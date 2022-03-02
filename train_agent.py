@@ -16,48 +16,56 @@ import helpers
 
 cmd_input = sys.argv
 if len(cmd_input) > 1:
-    SETTING = sys.argv[1]
+    CHANNEL_SETTINGS = sys.argv[1]
+    AGENT_SETTINGS = sys.argv[2]
 else:
-    SETTING = "Thing_01"
+    CHANNEL_SETTINGS = "car_urban_LOS_16_users_10000_steps"
+    AGENT_SETTINGS = "sarsa_TFFF_2-3-8-6-8_5000_5"
 
 # %% main
 if __name__ == "__main__":
 
-    # Load Settings for simulation
-    with open(f'Settings/{SETTING}.json', 'r') as fs:
-        setting = json.load(fs)
+    # Load Channel Settings for simulation
+    with open(f'Settings/{CHANNEL_SETTINGS}.json', 'r') as fs:
+        channel_settings = json.load(fs)
+
+    # Load Agent Settings for simulation
+    with open(f'Settings/{AGENT_SETTINGS}.json', 'r') as fs:
+        agent_settings = json.load(fs)
 
     # Load global parameters
-    FILENAME = setting["FILENAME"]  # Name of the data file to be loaded or saved
-    CASE = setting["CASE"]  # "car_highway", "pedestrian" or "car"
+    RESULT_NAME = agent_settings["RESULT_NAME"]
+    FILENAME = channel_settings["FILENAME"]  # Name of the data file to be loaded or saved
+    CASE = channel_settings["CASE"]  # "car_highway", "pedestrian" or "car"
 
     # ----------- Channel Simulation Parameters -----------
-    N = setting["N"]  # Number of steps in an episode
-    M = setting["M"]  # Number of episodes
-    r_lim = setting["rlim"]  # Radius of the cell
-    fc = setting["fc"]  # Center frequency
-    P_t = setting["P_t"]  # Transmission power
+    N = channel_settings["N"]  # Number of steps in an episode
+    M = channel_settings["M"]  # Number of episodes
+    r_lim = channel_settings["rlim"]  # Radius of the cell
+    fc = channel_settings["fc"]  # Center frequency
+    P_t = channel_settings["P_t"]  # Transmission power
     lambda_ = 3e8 / fc  # Wave length
 
     # ----------- Reinforcement Learning Parameters -----------
-    METHOD = setting["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
-    ADJ = setting["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
-    ORI = setting["ORI"]  # Include the orientation in the state
-    DIST = setting["DIST"]  # Include the dist in the state
-    LOCATION = setting["LOCATION"]  # Include location in polar coordinates in the state
-    n_actions = setting["n_actions"]  # Number of previous actions
-    n_ori = setting["n_ori"]  # Number of previous orientations
-    ori_res = setting["ori_res"]  # Resolution of the orientation
-    dist_res = setting["dist_res"]  # Resolution of the distance
-    angle_res = setting["angle_res"]  # Resolution of the angle
-    chunksize = setting["chunksize"]  # Number of samples taken out
-    Episodes = setting["Episodes"]  # Episodes per chunk
-    Nt = setting["transmitter"]["antennea"]  # Transmitter
-    Nr = setting["receiver"]["antennea"]  # Receiver
-    Nlt = setting["transmitter"]["layers"]  # Transmitter
-    Nlr = setting["receiver"]["layers"]  # Receiver
+    METHOD = agent_settings["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
+    ADJ = agent_settings["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
+    ORI = agent_settings["ORI"]  # Include the User Terminal orientation in the state
+    DIST = agent_settings["DIST"]  # Include the distance between User Terminal and Base Station in the state
+    LOCATION = agent_settings["LOCATION"]  # Include location of User Terminal in polar coordinates in the state
+    n_actions = agent_settings["n_actions"]  # Number of previous actions
+    n_ori = agent_settings["n_ori"]  # Number of previous orientations
+    ori_res = agent_settings["ori_res"]  # Resolution of the orientation
+    dist_res = agent_settings["dist_res"]  # Resolution of the distance
+    angle_res = agent_settings["angle_res"]  # Resolution of the angle
+    chunksize = agent_settings["chunksize"]  # Number of samples taken out
+    Episodes = agent_settings["Episodes"]  # Episodes per chunk
+    Nt = agent_settings["transmitter"]["antennea"]  # Transmitter
+    Nr = agent_settings["receiver"]["antennea"]  # Receiver
+    Nlt = agent_settings["transmitter"]["layers"]  # Transmitter
+    Nlr = agent_settings["receiver"]["layers"]  # Receiver
     Nbeam_tot = (2 ** (Nlr + 1)) - 2  # Total number of beams for the receiver
 
+    # TODO virker useless
     # Load Scenario configuration
     with open(f'Cases/{CASE}.json', 'r') as fp:
         case = json.load(fp)
@@ -153,7 +161,7 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
+    Agent = classes.Agent(action_space, eps=0.05, alpha=["constant", 0.7])
 
     for episode in tqdm(range(Episodes), desc="Episodes"):
         """
@@ -298,7 +306,21 @@ if __name__ == "__main__":
         'R_max': R_max_log,
         'R_min': R_min_log,
         'R_mean': R_mean_log,
-        'settings': setting
+        'agent_settings': agent_settings,
+        'channel_settings': channel_settings,
     }
 
-    helpers.dump_pickle(data, '', f'{FILENAME}_results.pickle')
+    try:
+        if "NLOS" in channel_settings["scenarios"][0]:
+            helpers.dump_pickle(data, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+        else:
+            helpers.dump_pickle(data, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+    except OSError as e:
+        print(e)
+        print("Saving to root folder instead")
+        if "NLOS" in channel_settings["scenarios"][0]:
+            helpers.dump_pickle(data, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+        else:
+            helpers.dump_pickle(data, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+
+
