@@ -45,6 +45,7 @@ def stability(save, data, average_window):
     plt.show()
 
 def ECDF(save, data, sections):
+
     """
     Plots the emperical cumulative distribution function for the x-db
     misalignment
@@ -93,7 +94,7 @@ def Relative_reward(save, mis_data, mis_mean, mis_min):
     plt.ylabel("Normalized reward")
     if save == True:
         plt.savefig("Figures/Relative_reward.pdf")
-    plt.show
+    plt.show()
 
 
 def mean_reward(save, y1, y2, y3, y4, labels, title,

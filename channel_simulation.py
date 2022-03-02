@@ -11,14 +11,14 @@ import helpers
 
 cmd_input = sys.argv
 if len(cmd_input) > 1:
-    SETTING = sys.argv[1]
+    CHANNEL_SETTINGS = sys.argv[1]
 else:
-    SETTING = "Fisker_test_01"
+    CHANNEL_SETTINGS = "pedestrian_NLOS_8_users_20000_steps"
 
 # %% main
 if __name__ == "__main__":
     # Load Settings for simulation
-    with open(f'Settings/{SETTING}.json', 'r') as fs:
+    with open(f'Settings/{CHANNEL_SETTINGS}.json', 'r') as fs:
         setting = json.load(fs)
 
     # Load global parameters

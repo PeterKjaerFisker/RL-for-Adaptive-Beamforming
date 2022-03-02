@@ -11,7 +11,6 @@ import sys
 import dill as pickle
 import numpy as np
 import scipy.io as scio
-import oct2py
 
 import classes
 import plots
