@@ -13,41 +13,32 @@ cmd_input = sys.argv
 if len(cmd_input) > 1:
     DATA_NAME = sys.argv[1]
 else:
-    DATA_NAME = "pedestrian_LOS_sarsa_TTFT_2-2-8-8-16_5000_1000"
+    DATA_NAME = "car_urban_LOS_sarsa_TFFF_2-3-8-6-8_5000_5"
 
 # %% Load pickle
 data = helpers.load_pickle('Results/', f'{DATA_NAME}_results.pickle')
 Agent = data['Agent']
-R_log = data['R_log']
-R_max_log = data['R_max']
-R_min_log = data['R_min']
-R_mean_log = data['R_mean']
-setting = data['settings']
+R_log_db = data['R_log']
+R_max_log_db = data['R_max']
+R_min_log_db = data['R_min']
+R_mean_log_db = data['R_mean']
+#setting = data['settings']
 Save = False
 
 # %% PLOT
 print("Starts plotting")
 
-# Get the Logs in power decibel
-R_log_db = 10 * np.log10(R_log)
-R_max_log_db = 10 * np.log10(R_max_log)
-R_min_log_db = 10 * np.log10(R_min_log)
-R_mean_log_db = 10 * np.log10(R_mean_log)
+# Calculate differences
 Misalignment_log_dB = R_log_db - R_max_log_db
 Meanalignment_log_dB = R_mean_log_db - R_max_log_db
 Minalignment_log_dB = R_min_log_db - R_max_log_db
 
-plots.ECDF(Save, np.mean(Misalignment_log_dB[-100:, :], axis=0))
+plots.ECDF(Save, Misalignment_log_dB, 1)
 
 plots.Relative_reward(Save,
                       np.mean(Misalignment_log_dB, axis=0),
                       np.mean(Meanalignment_log_dB, axis=0),
                       np.mean(Minalignment_log_dB, axis=0))
-
-plots.Relative_reward(Save,
-                      np.mean(Misalignment_log_dB[-1000:-800, :], axis=0),
-                      np.mean(Meanalignment_log_dB[-1000:-800, :], axis=0),
-                      np.mean(Minalignment_log_dB[-1000:-800, :], axis=0))
 
 plots.stability(Save, R_log_db, 50)
 

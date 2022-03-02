@@ -450,7 +450,8 @@ class Environment():
             for q in range(len(self.W[:, 0])):
                 R[p, q] = np.linalg.norm(np.sqrt(self.P_t) * np.conjugate(self.W[q, :]).T
                                          @ H @ self.F[p, :]) ** 2
-
+        
+        R = 10 * np.log10(R)
         return np.max(R[:, action]), np.max(R), np.min(np.max(R, axis=0)), np.mean(np.max(R, axis=0))
 
     def take_action(self, stepnr, action):
