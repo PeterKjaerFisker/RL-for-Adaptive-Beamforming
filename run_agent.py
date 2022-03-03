@@ -18,7 +18,7 @@ cmd_input = sys.argv
 if len(cmd_input) > 1:
     CHANNEL_SETTINGS = sys.argv[1]
     AGENT_SETTINGS = sys.argv[2]
-    DATA_NAME = sys.argv[1]
+    DATA_NAME = sys.argv[3]
 else:
     CHANNEL_SETTINGS = "car_urban_LOS_16_users_10000_steps"
     AGENT_SETTINGS = "sarsa_TFFF_2-3-8-6-8_5000_5_Kopi"
