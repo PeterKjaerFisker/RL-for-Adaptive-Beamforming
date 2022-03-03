@@ -13,7 +13,7 @@ cmd_input = sys.argv
 if len(cmd_input) > 1:
     DATA_NAME = sys.argv[1]
 else:
-    DATA_NAME = "pedestrian_LOS_sarsa_TTFF_3-3-8-8-16_5000_1000"
+    DATA_NAME = "car_urban_LOS_sarsa_TFFF_2-3-8-6-8_5000_5"
 
 # %% Load pickle
 data = helpers.load_pickle('Results/', f'{DATA_NAME}_results.pickle')
