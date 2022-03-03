@@ -156,6 +156,7 @@ if __name__ == "__main__":
 
     # Initializing arrays for logs.
     action_log = np.zeros([Episodes, chunksize])
+    beam_log = np.zeros([Episodes, chunksize])
     R_log = np.zeros([Episodes, chunksize])
     R_max_log = np.zeros([Episodes, chunksize])
     R_min_log = np.zeros([Episodes, chunksize])
@@ -211,7 +212,7 @@ if __name__ == "__main__":
         State = classes.State(State_tmp, ORI, DIST, LOCATION)
 
         # Initiate the action
-        action = np.random.choice(action_space) # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
+        beam_nr = np.random.choice(action_space) # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
         retning = np.random.randint(0, 3) - 1   # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
 
         # TODO første action skal afhænge af initial state
@@ -257,16 +258,16 @@ if __name__ == "__main__":
 
             # Calculate the action
             if ADJ:
-                State.state = State.build_state(action, current_state_parameters, retning)
-                action, retning = Agent.e_greedy_adj(helpers.state_to_index(State.state), action, Nlr) # TODO måske ændre sidste output til "limiting factors"
+                State.state = State.build_state(beam_nr, current_state_parameters, retning)
+                beam_nr, retning = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr) # TODO måske ændre sidste output til "limiting factors"
                 action_index = retning
             else:
-                State.state = State.build_state(action, current_state_parameters)
-                action = Agent.e_greedy(helpers.state_to_index(State.state))
-                action_index = action
+                State.state = State.build_state(beam_nr, current_state_parameters)
+                beam_nr = Agent.e_greedy(helpers.state_to_index(State.state))
+                action_index = beam_nr
 
             # Get reward from performing action
-            R, R_max, R_min, R_mean = Env.take_action(n, action)
+            R, R_max, R_min, R_mean = Env.take_action(n, beam_nr)
 
 
             # Update Q-table
@@ -275,20 +276,20 @@ if __name__ == "__main__":
 
             elif METHOD == "SARSA":
                 if ADJ: # Note that next_action here is a direction index and not a beam number
-                    next_state = State.build_state(action, next_state_parameters, retning)
-                    next_beam, next_action = Agent.e_greedy_adj(helpers.state_to_index(next_state), action, Nlr)
+                    next_state = State.build_state(beam_nr, next_state_parameters, retning)
+                    next_beam, next_action = Agent.e_greedy_adj(helpers.state_to_index(next_state), beam_nr, Nlr)
                 else: # Note that next_action is a beam number and not a direction index
-                    next_state = State.build_state(action, next_state_parameters)
+                    next_state = State.build_state(beam_nr, next_state_parameters)
                     next_action = Agent.e_greedy(helpers.state_to_index(next_state))
 
                 Agent.update_TD(State, action_index, R, next_state, next_action, end=end)
 
             elif METHOD == "Q-LEARNING":
                 if ADJ: # Note that next_action here is a direction index and not a beam number
-                    next_state = State.build_state(action, next_state_parameters, retning)
-                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(next_state), action, Nlr)
+                    next_state = State.build_state(beam_nr, next_state_parameters, retning)
+                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(next_state), beam_nr, Nlr)
                 else: # Note that next_action is a beam number and not a direction index
-                    next_state = State.build_state(action, next_state_parameters)
+                    next_state = State.build_state(beam_nr, next_state_parameters)
                     next_action = Agent.greedy(helpers.state_to_index(next_state))
 
                 Agent.update_TD(State, action_index, R, next_state, next_action, end=end)
@@ -296,6 +297,7 @@ if __name__ == "__main__":
                 raise Exception("Method not recognized")
 
             action_log[episode, n] = action_index
+            beam_log[episode, n] = beam_nr
             R_log[episode, n] = R
             R_max_log[episode, n] = R_max
             R_min_log[episode, n] = R_min

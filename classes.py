@@ -451,7 +451,6 @@ class Environment():
                 R[p, q] = np.linalg.norm(np.sqrt(self.P_t) * np.conjugate(self.W[q, :]).T
                                          @ H @ self.F[p, :]) ** 2
         
-        #R = 10 * np.log10(R)
         return np.max(R[:, action]), np.max(R), np.min(np.max(R, axis=0)), np.mean(np.max(R, axis=0))
 
     def take_action(self, stepnr, action):
@@ -794,11 +793,11 @@ class Agent:
         next_dir = dir_list[choice]          
         r_est = self.Q[state, next_dir][0]
 
-        for idx, last_dir in enumerate(dir_list):
-            if self.Q[state, last_dir][0] > r_est:
-                next_action = last_dir
+        for idx, retning in enumerate(dir_list):
+            if self.Q[state, retning][0] > r_est:
+                next_action = actions[idx]
                 next_dir = dir_list[idx]
-                r_est = self.Q[state, last_dir][0]
+                r_est = self.Q[state, retning][0]
 
         return next_action, next_dir
 
