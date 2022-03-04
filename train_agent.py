@@ -20,7 +20,7 @@ if len(cmd_input) > 1:
     AGENT_SETTINGS = sys.argv[2]
 else:
     CHANNEL_SETTINGS = "car_urban_LOS_16_users_10000_steps"
-    AGENT_SETTINGS = "sarsa_TFFF_2-3-8-6-8_5000_5"
+    AGENT_SETTINGS = "sarsa_TFFF_3-3-8-6-8_1300_3"
 
 # %% main
 if __name__ == "__main__":
@@ -196,7 +196,10 @@ if __name__ == "__main__":
 
         # Initiate the State at a random beam sequence
         # TODO dette skal ikke blot være beams men én beam og et antal tidligere "retninger"
-        State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions))] #TODO tilfæj dual beam
+        #State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions))] #TODO tilfæj dual beam
+        
+        #Dual beam compatible version i think
+        State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions),np.random.randint(0, Nbeam_tot_t, n_actions))]
 
         if DIST or LOCATION:
             State_tmp.append(list([dist_discrete[0][0]]))
@@ -263,6 +266,7 @@ if __name__ == "__main__":
             # Calculate the action
             if ADJ:
                 State.state = State.build_state(beam_nr, current_state_parameters, retning)
+                tmp = State.state
                 beam_nr, retning = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt) # TODO måske ændre sidste output til "limiting factors"
                 action_index = retning
             else:

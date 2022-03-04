@@ -556,13 +556,24 @@ class State:
         retning_r = retning[0]
         retning_t = retning[1]
 
+        # if retning is not None:
+        #     state_a = self.state[0][1:-1]
+        #     state_a.append(retning_r)
+        # else:
+        #     state_a = self.state[0][1:]
+
+        # state_a.append(beam_r)
+        
+        # Dual beam compatible version i think
         if retning is not None:
-            state_a = self.state[0][1:-1]
+            state_a = self.state[0][2:-2]
             state_a.append(retning_r)
+            state_a.append(retning_t)
         else:
-            state_a = self.state[0][1:]
+            state_a = self.state[0][2:]
 
         state_a.append(beam_r)
+        state_a.append(beam_t)
 
         if self.distance_flag or self.location_flag:
             state_d = [dist]
