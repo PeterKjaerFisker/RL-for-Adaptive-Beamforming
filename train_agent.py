@@ -312,6 +312,8 @@ if __name__ == "__main__":
         'R_mean': R_mean_log,
         'agent_settings': agent_settings,
         'channel_settings': channel_settings,
+        'action_log': action_log,
+        'beam_log': beam_log,
     }
 
     try:
