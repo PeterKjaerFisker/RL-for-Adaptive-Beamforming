@@ -20,7 +20,7 @@ if len(cmd_input) > 1:
     AGENT_SETTINGS = sys.argv[2]
 else:
     CHANNEL_SETTINGS = "car_urban_LOS_16_users_10000_steps"
-    AGENT_SETTINGS = "sarsa_TFFF_3-3-8-6-8_1300_3"
+    AGENT_SETTINGS = "sarsa_TFFF_2-3-8-6-8_5000_5"
 
 # %% main
 if __name__ == "__main__":
@@ -52,7 +52,8 @@ if __name__ == "__main__":
     ORI = agent_settings["ORI"]  # Include the User Terminal orientation in the state
     DIST = agent_settings["DIST"]  # Include the distance between User Terminal and Base Station in the state
     LOCATION = agent_settings["LOCATION"]  # Include location of User Terminal in polar coordinates in the state
-    n_actions = agent_settings["n_actions"]  # Number of previous actions
+    n_actions_r = agent_settings["n_actions_r"]  # Number of previous actions
+    n_actions_t = agent_settings["n_actions_t"]  # Number of previous actions
     n_ori = agent_settings["n_ori"]  # Number of previous orientations
     ori_res = agent_settings["ori_res"]  # Resolution of the orientation
     dist_res = agent_settings["dist_res"]  # Resolution of the distance
@@ -199,7 +200,15 @@ if __name__ == "__main__":
         #State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions))] #TODO tilfæj dual beam
         
         #Dual beam compatible version i think
-        State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions),np.random.randint(0, Nbeam_tot_t, n_actions))]
+        if Nbeam_tot_r > 0:
+            State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r))]
+        else:
+            State_tmp = [list("N/A")]
+            
+        if Nbeam_tot_t > 0:
+            State_tmp.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t)))
+        else:
+            State_tmp.append(["N/A"])
 
         if DIST or LOCATION:
             State_tmp.append(list([dist_discrete[0][0]]))
@@ -216,7 +225,7 @@ if __name__ == "__main__":
         else:
             State_tmp.append(["N/A"])
 
-        State = classes.State(State_tmp, ORI, DIST, LOCATION)
+        State = classes.State(State_tmp, ORI, DIST, LOCATION, n_actions_r, n_actions_t)
 
         # Initiate the action
         beam_nr = tuple((np.random.choice(action_space_r),np.random.choice(action_space_t))) # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.

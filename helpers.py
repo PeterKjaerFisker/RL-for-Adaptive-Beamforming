@@ -79,7 +79,8 @@ def state_to_index(state):
 
     """
     return tuple([tuple(state[0]), tuple(state[1]),
-                  tuple(state[2]), tuple(state[3])])
+                  tuple(state[2]), tuple(state[3]),
+                  tuple(state[4])])
 
 
 def steering_vectors2d(direction, theta, N, lambda_):

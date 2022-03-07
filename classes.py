@@ -506,7 +506,7 @@ class Environment():
 
 # %% State Class
 class State:
-    def __init__(self, intial_state, orientation_flag=False, distance_flag=False, location_flag=False):
+    def __init__(self, intial_state, orientation_flag=False, distance_flag=False, location_flag=False, r_hist_flag=False, t_hist_flag=False):
         """
         Initiate the state object, containing the current state
 
@@ -530,6 +530,8 @@ class State:
         self.orientation_flag = orientation_flag
         self.distance_flag = distance_flag
         self.location_flag = location_flag
+        self.r_hist_flag = r_hist_flag
+        self.t_hist_flag = t_hist_flag
 
     def build_state(self, beam_nr, para=[None, None, None], retning=None):
         """
@@ -565,15 +567,35 @@ class State:
         # state_a.append(beam_r)
         
         # Dual beam compatible version i think
-        if retning is not None:
-            state_a = self.state[0][2:-2]
-            state_a.append(retning_r)
-            state_a.append(retning_t)
-        else:
-            state_a = self.state[0][2:]
+        # if retning is not None:
+        #     state_a = self.state[0][2:-2]
+        #     state_a.append(retning_r)
+        #     state_a.append(retning_t)
+        # else:
+        #     state_a = self.state[0][2:]
 
-        state_a.append(beam_r)
-        state_a.append(beam_t)
+        # state_a.append(beam_r)
+        # state_a.append(beam_t)
+        
+        if self.r_hist_flag:
+            if retning is not None:
+                state_r = self.state[0][1:-1]
+                state_r.append(retning_r)
+            else:
+                state_r = self.state[0][1:]
+            state_r.append(beam_r)
+        else:
+            state_r = ["N/A"]
+            
+        if self.t_hist_flag:
+            if retning is not None:
+                state_t = self.state[1][1:-1]
+                state_t.append(retning_t)
+            else:
+                state_t = self.state[1][1:]
+            state_t.append(beam_t)
+        else:
+            state_t = ["N/A"]
 
         if self.distance_flag or self.location_flag:
             state_d = [dist]
@@ -581,7 +603,7 @@ class State:
             state_d = ["N/A"]
 
         if self.orientation_flag:
-            state_o = self.state[2][1:]
+            state_o = self.state[3][1:]
             state_o.append(ori)
         else:
             state_o = ["N/A"]
@@ -591,7 +613,7 @@ class State:
         else:
             state_deg = ["N/A"]
 
-        return [state_a, state_d, state_o, state_deg]
+        return [state_r, state_t, state_d, state_o, state_deg]
 
 
 # %% Agent Class
