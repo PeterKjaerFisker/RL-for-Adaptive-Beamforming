@@ -578,22 +578,32 @@ class State:
         # state_a.append(beam_t)
         
         if self.r_hist_flag:
-            if retning is not None:
-                state_r = self.state[0][1:-1]
-                state_r.append(retning_r)
+            if len(self.state[0]) > 1:
+                if retning is not None:
+                    state_r = self.state[0][1:-1]
+                    state_r.append(retning_r)
+                else:
+                    state_r = self.state[0][1:]
+                state_r.append(beam_r)
             else:
-                state_r = self.state[0][1:]
-            state_r.append(beam_r)
+                state_r = self.state[0]
+                state_r.pop()
+                state_r.append(beam_r)
         else:
             state_r = ["N/A"]
             
         if self.t_hist_flag:
-            if retning is not None:
-                state_t = self.state[1][1:-1]
-                state_t.append(retning_t)
+            if len(self.state[1]) > 1:
+                if retning is not None:
+                    state_t = self.state[1][1:-1]
+                    state_t.append(retning_t)
+                else:
+                    state_t = self.state[1][1:]
+                state_t.append(beam_t)
             else:
-                state_t = self.state[1][1:]
-            state_t.append(beam_t)
+                state_t = self.state[1]
+                state_t.pop()
+                state_t.append(beam_t)
         else:
             state_t = ["N/A"]
 
@@ -908,7 +918,7 @@ class Agent:
             self.Q[state, action][1] + 1]
         self._update_alpha(state, action)
 
-    def update_TD(self, State, action, R, next_state, next_action, end=False):
+    def update_TD(self, state, action, R, next_state, next_action, end=False):
         """
         Update the Q table for the given state and action based on TD(0).
         Based on the book:
@@ -927,7 +937,6 @@ class Agent:
         -------
 
         """
-        state = helpers.state_to_index(State.state)
         next_state = helpers.state_to_index(next_state)
         if end is False:
             next_Q = self.Q[next_state, next_action][0]

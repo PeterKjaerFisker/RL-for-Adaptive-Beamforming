@@ -20,7 +20,7 @@ if len(cmd_input) > 1:
     AGENT_SETTINGS = sys.argv[2]
 else:
     CHANNEL_SETTINGS = "car_urban_LOS_16_users_10000_steps"
-    AGENT_SETTINGS = "sarsa_TFFF_2-3-8-6-8_5000_5"
+    AGENT_SETTINGS = "sarsa_TFFF_1-0-0-0-0-0_1000_1"
 
 # %% main
 if __name__ == "__main__":
@@ -200,12 +200,12 @@ if __name__ == "__main__":
         #State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions))] #TODO tilfæj dual beam
         
         #Dual beam compatible version i think
-        if Nbeam_tot_r > 0:
+        if n_actions_r > 0:
             State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r))]
         else:
             State_tmp = [list("N/A")]
             
-        if Nbeam_tot_t > 0:
+        if n_actions_t > 0:
             State_tmp.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t)))
         else:
             State_tmp.append(["N/A"])
@@ -229,9 +229,17 @@ if __name__ == "__main__":
 
         # Initiate the action
         beam_nr = tuple((np.random.choice(action_space_r),np.random.choice(action_space_t))) # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
-        retning = tuple((np.random.randint(0, 6),np.random.randint(0, 6)))   # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
+        adj_action_index = tuple((np.random.randint(0, 6),np.random.randint(0, 6)))   # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
 
         # TODO første action skal afhænge af initial state
+
+        previous_state = State.state
+        previous_beam_nr = beam_nr
+
+        if ADJ:
+            previous_action = adj_action_index
+        else:
+            previous_action = beam_nr
 
         end = False
         # Run the episode
@@ -270,16 +278,15 @@ if __name__ == "__main__":
                 end = True
 
             current_state_parameters = [dist, ori, angle]
-            next_state_parameters = [next_dist, next_ori, next_angle]
+            # next_state_parameters = [next_dist, next_ori, next_angle]
 
             # Calculate the action
             if ADJ:
-                State.state = State.build_state(beam_nr, current_state_parameters, retning)
-                tmp = State.state
-                beam_nr, retning = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt) # TODO måske ændre sidste output til "limiting factors"
-                action_index = retning
+                State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
+                beam_nr, adj_action_index = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt) # TODO måske ændre sidste output til "limiting factors"
+                action_index = adj_action_index
             else:
-                State.state = State.build_state(beam_nr, current_state_parameters)
+                State.state = State.build_state(previous_beam_nr, current_state_parameters)
                 beam_nr = Agent.e_greedy(helpers.state_to_index(State.state))
                 action_index = beam_nr
 
@@ -292,24 +299,35 @@ if __name__ == "__main__":
                 Agent.update_simple(helpers.state_to_index(State.state), action_index, R)
 
             elif METHOD == "SARSA":
-                if ADJ: # Note that next_action here is a direction index and not a beam number
-                    next_state = State.build_state(beam_nr, next_state_parameters, retning)
-                    next_beam, next_action = Agent.e_greedy_adj(helpers.state_to_index(next_state), beam_nr, Nlr, Nlt)
-                else: # Note that next_action is a beam number and not a direction index
-                    next_state = State.build_state(beam_nr, next_state_parameters)
-                    next_action = Agent.e_greedy(helpers.state_to_index(next_state))
+                # if ADJ: # Note that next_action here is a direction index and not a beam number
+                #     next_state = State.build_state(beam_nr, next_state_parameters, adj_action_index)
+                #     next_beam, next_action = Agent.e_greedy_adj(helpers.state_to_index(next_state), beam_nr, Nlr, Nlt)
+                # else: # Note that next_action is a beam number and not a direction index
+                #     next_state = State.build_state(beam_nr, next_state_parameters)
+                #     next_action = Agent.e_greedy(helpers.state_to_index(next_state))
 
-                Agent.update_TD(State, action_index, R, next_state, next_action, end=end)
+                # Agent.update_TD(State, action_index, R, next_state, next_action, end=end)
+                Agent.update_TD(helpers.state_to_index(previous_state),
+                                previous_action,
+                                R,
+                                helpers.state_to_index(State.state),
+                                action_index,
+                                end=end)
 
             elif METHOD == "Q-LEARNING":
                 if ADJ: # Note that next_action here is a direction index and not a beam number
-                    next_state = State.build_state(beam_nr, next_state_parameters, retning)
-                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(next_state), beam_nr, Nlr, Nlt)
+                    # next_state = State.build_state(beam_nr, next_state_parameters, adj_action_index)
+                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt)
                 else: # Note that next_action is a beam number and not a direction index
-                    next_state = State.build_state(beam_nr, next_state_parameters)
-                    next_action = Agent.greedy(helpers.state_to_index(next_state))
+                    # next_state = State.build_state(beam_nr, next_state_parameters)
+                    next_action = Agent.greedy(helpers.state_to_index(State.state))
 
-                Agent.update_TD(State, action_index, R, next_state, next_action, end=end)
+                Agent.update_TD(helpers.state_to_index(previous_state),
+                                previous_action,
+                                R,
+                                helpers.state_to_index(State.state),
+                                next_action,
+                                end=end)
             else:
                 raise Exception("Method not recognized")
 
@@ -321,6 +339,13 @@ if __name__ == "__main__":
             R_max_log[episode, n] = R_max
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
+
+            previous_state = State.state
+            previous_beam_nr = beam_nr
+            previous_action = action_index
+
+
+
 
     # %% Save pickle
     data = {
