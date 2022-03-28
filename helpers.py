@@ -342,7 +342,7 @@ def noisy_ori(ori_vector):
         # generate the additive orientation noise as MA filtered random walk
         a = np.zeros(len(z_axis))
         for i in range(len(z_axis)):
-            a[i] = np.sum(a_bar[i:i + K]) / K
+            a[i] = np.sum(a_bar[i-K:i]) / K
 
         # Add the noise to original data and wrap angles to range [-pi:pi] for correct signs
         res_z_axis = z_axis + a
