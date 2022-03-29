@@ -14,9 +14,115 @@ import scipy.io as scio
 
 import classes
 import plots
-
+import json
 
 # %% Functions
+def settings_file_generator(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty_parameter = None):
+    
+    if isinstance(Nb_r,list):
+        for Nb_r_count in Nb_r:
+            create_agent_setting(Nb_r_count,Nb_r_count,0,0,0,0,Pretty_parameter)
+    
+    # if isinstance(Nb_t,list):
+    #     for Nb_t_count in Nb_t:
+    #         create_agent_setting(0,Nb_t_count,0,0,0,0,Pretty_parameter)
+            
+    # if isinstance(Ori_his,list):
+    #     for Ori_his_count in Ori_his:
+    #         for Ori_res_count in Ori_res:
+    #             create_agent_setting(0,0,Ori_his_count,Ori_res_count,0,0,Pretty_parameter)
+                
+    # if isinstance(Dist_res,list):
+    #     for Dist_res_count in Dist_res:
+    #         create_agent_setting(0,0,0,0,Dist_res_count,0,Pretty_parameter)
+            
+    # if isinstance(Dist_res,list):
+    #     for Dist_res_count in Dist_res:
+    #         for Ang_res_count in Ang_res:
+    #             create_agent_setting(0,0,0,0,Dist_res_count,Ang_res_count,Pretty_parameter)
+
+
+def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty_parameter = None):
+    """
+    Saves an agent settings file, containing the specified settings from inputs
+
+    Parameters
+    ----------
+    Nb_r : Int
+        Number of previous actions for receiver.
+    Nb_t : Int
+        Number of previous actions for transmitter.
+    Ori_his : Int
+        Number of previous orientations.
+    Ori_res : Int
+        Resolution of the orientation(s).
+    Dist_res : Int
+        Resolution of the distance.
+    Ang_res : Int
+        Resolution of the angle.
+    Pretty_parameter : String or Int, optional
+        If unspecified the written file will not contain newlines and will be nigh unreadable. The default is None.
+
+    Returns
+    -------
+    None.
+
+    """
+    if Ori_res == 0:
+        Ori = False
+        Ori_s = "F"
+    else:
+        Ori = True
+        Ori_s = "T"
+        
+    if Dist_res == 0:
+        Dist = False
+        Dist_s = "F"
+    elif Dist_res != 0 and Ang_res == 0:
+        Dist = True
+        Dist_s = "T"
+    elif Dist_res != 0 and Ang_res != 0:
+        Dist = False
+        Dist_s = "F"
+        
+    if Ang_res == 0:
+        Ang = False
+        Ang_s = "F"
+    else:
+        Ang = True
+        Ang_s = "T"
+    
+    result_name = "sarsa_T"+Ori_s+Dist_s+Ang_s+"_"+str(Nb_r)+"-"+str(Nb_t)+"-"+str(Ori_his)+"-"+str(Ori_res)+"-"+str(Dist_res)+"-"+str(Ang_res)+"_"+str(10000)+"_"+str(2000)
+    
+    data = {
+        "RESULT_NAME":      result_name,
+        "METHOD":           "SARSA",
+        "ADJ":              True,
+        "ORI":              Ori,
+        "DIST":             Dist,
+        "LOCATION":         Ang,
+        "n_actions_r":      Nb_r,
+        "n_actions_t":      Nb_t,
+        "n_ori":            Ori_his,
+        "ori_res":          Ori_res,
+        "dist_res":         Dist_res,
+        "angle_res":        Ang_res,
+        "chunksize":        10000,
+        "Episodes":         2000,
+        "receiver":         {
+                            "antennea": 8,
+                            "layers": 3
+                            },
+        "transmitter":      {
+                            "antennea": 32,
+                            "layers": 4
+                            }
+    }
+    
+    #print("Settings/"+result_name)
+    with open("./Settings/"+result_name+".json", 'w') as outfile:
+        json.dump(data, outfile, indent = Pretty_parameter)
+
 def dump_pickle(data, path, filename):
     """
     Saves a file, containing training results
