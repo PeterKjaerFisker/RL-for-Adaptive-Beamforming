@@ -20,7 +20,7 @@ if len(cmd_input) > 1:
     AGENT_SETTINGS = sys.argv[2]
 else:
     CHANNEL_SETTINGS = "car_urban_LOS_16_users_10000_steps"
-    AGENT_SETTINGS = "sarsa_TFFF_1-0-0-0-0-0_1000_1"
+    AGENT_SETTINGS = "sarsa_TFFF_2-2-0-0-0-0_5000_300"
 
 # %% main
 if __name__ == "__main__":
@@ -64,8 +64,8 @@ if __name__ == "__main__":
     Nr = agent_settings["receiver"]["antennea"]  # Receiver
     Nlt = agent_settings["transmitter"]["layers"]  # Transmitter
     Nlr = agent_settings["receiver"]["layers"]  # Receiver
-    Nbeam_tot_r = (2**(Nlr + 1)) - 2  # Total number of beams for the receiver
-    Nbeam_tot_t = (2**(Nlt+1)) - 2 # Total number of beams for the transmitter
+    Nbeam_tot_r = (2 ** (Nlr + 1)) - 2  # Total number of beams for the receiver
+    Nbeam_tot_t = (2 ** (Nlt + 1)) - 2  # Total number of beams for the transmitter
 
     # TODO virker useless
     # Load Scenario configuration
@@ -75,7 +75,8 @@ if __name__ == "__main__":
     # ----------- Load the data -----------
     t_start = time()
     # Load the data
-    channel_par, pos_log = helpers.load_data(f"data_pos_{FILENAME}.mat", f"data_{FILENAME}")
+    channel_par, pos_log = helpers.load_data(f"Data_set_gen_2/data_pos_{FILENAME}.mat",
+                                             f"Data_set_gen_2/data_{FILENAME}")
     print(f"Took: {time() - t_start}", flush=True)
 
     # Re-affirm that "M" matches data
@@ -169,6 +170,14 @@ if __name__ == "__main__":
 
     Agent = classes.Agent(action_space_r, action_space_t, eps=0.05, alpha=["constant", 0.7])
 
+    print('Rewards are now calculated')
+    reward_start = time()
+
+    Env.update_data(AoA_Local, AoD_Global, coeff)
+    Env.create_reward_matrix()
+
+    print(f'Rewards tog {time() - reward_start} sekunder at regne')
+
     for episode in tqdm(range(Episodes), desc="Episodes"):
         """
         For each episode we first initialize a random State to begin in. 
@@ -190,21 +199,26 @@ if __name__ == "__main__":
         path_idx = np.random.randint(0, M)
         data_idx = np.random.randint(0, N - chunksize) if (N - chunksize) else 0
 
-        # Update the environment data
-        Env.update_data(AoA_Local[path_idx][data_idx:data_idx + chunksize],
-                        AoD_Global[path_idx][0][data_idx:data_idx + chunksize],
-                        coeff[path_idx][0][data_idx:data_idx + chunksize])
+        # # Update the environment data
+        # AoA_Local_episode = AoA_Local[path_idx][data_idx:data_idx + chunksize]
+        # AoD_Global_episode = AoD_Global[path_idx][0][data_idx:data_idx + chunksize]
+        # Betas = coeff[path_idx][0][data_idx:data_idx + chunksize]
+        # Betas = Betas.reshape(Betas.shape + (1,))  # Add dimension "1" to get array of column vectors, needed later.
+        #
+        # Env.update_data(AoA_Local_episode,
+        #                 AoD_Global_episode,
+        #                 Betas)
 
         # Initiate the State at a random beam sequence
         # TODO dette skal ikke blot være beams men én beam og et antal tidligere "retninger"
-        #State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions))] #TODO tilfæj dual beam
-        
-        #Dual beam compatible version i think
+        # State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions))] #TODO tilfæj dual beam
+
+        # Dual beam compatible version i think
         if n_actions_r > 0:
             State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r))]
         else:
             State_tmp = [list("N/A")]
-            
+
         if n_actions_t > 0:
             State_tmp.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t)))
         else:
@@ -228,8 +242,10 @@ if __name__ == "__main__":
         State = classes.State(State_tmp, ORI, DIST, LOCATION, n_actions_r, n_actions_t)
 
         # Initiate the action
-        beam_nr = tuple((np.random.choice(action_space_r),np.random.choice(action_space_t))) # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
-        adj_action_index = tuple((np.random.randint(0, 6),np.random.randint(0, 6)))   # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
+        beam_nr = tuple((np.random.choice(action_space_r), np.random.choice(
+            action_space_t)))  # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
+        adj_action_index = tuple((np.random.randint(0, 6), np.random.randint(0,
+                                                                             6)))  # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
 
         # TODO første action skal afhænge af initial state
 
@@ -283,7 +299,8 @@ if __name__ == "__main__":
             # Calculate the action
             if ADJ:
                 State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
-                beam_nr, adj_action_index = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt) # TODO måske ændre sidste output til "limiting factors"
+                beam_nr, adj_action_index = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr,
+                                                               Nlt)  # TODO måske ændre sidste output til "limiting factors"
                 action_index = adj_action_index
             else:
                 State.state = State.build_state(previous_beam_nr, current_state_parameters)
@@ -291,8 +308,7 @@ if __name__ == "__main__":
                 action_index = beam_nr
 
             # Get reward from performing action
-            R, R_max, R_min, R_mean = Env.take_action(n, beam_nr)
-
+            R, R_max, R_min, R_mean = Env.take_action(path_idx, n+data_idx, beam_nr)
 
             # Update Q-table
             if METHOD == "simple":
@@ -315,10 +331,10 @@ if __name__ == "__main__":
                                 end=end)
 
             elif METHOD == "Q-LEARNING":
-                if ADJ: # Note that next_action here is a direction index and not a beam number
+                if ADJ:  # Note that next_action here is a direction index and not a beam number
                     # next_state = State.build_state(beam_nr, next_state_parameters, adj_action_index)
                     next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt)
-                else: # Note that next_action is a beam number and not a direction index
+                else:  # Note that next_action is a beam number and not a direction index
                     # next_state = State.build_state(beam_nr, next_state_parameters)
                     next_action = Agent.greedy(helpers.state_to_index(State.state))
 
@@ -343,9 +359,6 @@ if __name__ == "__main__":
             previous_state = State.state
             previous_beam_nr = beam_nr
             previous_action = action_index
-
-
-
 
     # %% Save pickle
     data = {
@@ -374,5 +387,3 @@ if __name__ == "__main__":
             helpers.dump_pickle(data, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
         else:
             helpers.dump_pickle(data, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-
-

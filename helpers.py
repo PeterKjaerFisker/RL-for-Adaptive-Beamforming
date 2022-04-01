@@ -11,38 +11,39 @@ import sys
 import dill as pickle
 import numpy as np
 import scipy.io as scio
+from numba import njit
 
 import classes
 import plots
 import json
 
+
 # %% Functions
-def settings_file_generator(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty_parameter = None):
-    
-    if isinstance(Nb_r,list):
+def settings_file_generator(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty_parameter=None):
+    if isinstance(Nb_r, list):
         for Nb_r_count in Nb_r:
-            create_agent_setting(Nb_r_count,Nb_r_count,0,0,0,0,Pretty_parameter)
-    
+            create_agent_setting(Nb_r_count, Nb_r_count, 0, 0, 0, 0, Pretty_parameter)
+
     # if isinstance(Nb_t,list):
     #     for Nb_t_count in Nb_t:
     #         create_agent_setting(0,Nb_t_count,0,0,0,0,Pretty_parameter)
-            
+
     # if isinstance(Ori_his,list):
     #     for Ori_his_count in Ori_his:
     #         for Ori_res_count in Ori_res:
     #             create_agent_setting(0,0,Ori_his_count,Ori_res_count,0,0,Pretty_parameter)
-                
+
     # if isinstance(Dist_res,list):
     #     for Dist_res_count in Dist_res:
     #         create_agent_setting(0,0,0,0,Dist_res_count,0,Pretty_parameter)
-            
+
     # if isinstance(Dist_res,list):
     #     for Dist_res_count in Dist_res:
     #         for Ang_res_count in Ang_res:
     #             create_agent_setting(0,0,0,0,Dist_res_count,Ang_res_count,Pretty_parameter)
 
 
-def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty_parameter = None):
+def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty_parameter=None):
     """
     Saves an agent settings file, containing the specified settings from inputs
 
@@ -74,7 +75,7 @@ def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty
     else:
         Ori = True
         Ori_s = "T"
-        
+
     if Dist_res == 0:
         Dist = False
         Dist_s = "F"
@@ -84,44 +85,46 @@ def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty
     elif Dist_res != 0 and Ang_res != 0:
         Dist = False
         Dist_s = "F"
-        
+
     if Ang_res == 0:
         Ang = False
         Ang_s = "F"
     else:
         Ang = True
         Ang_s = "T"
-    
-    result_name = "sarsa_T"+Ori_s+Dist_s+Ang_s+"_"+str(Nb_r)+"-"+str(Nb_t)+"-"+str(Ori_his)+"-"+str(Ori_res)+"-"+str(Dist_res)+"-"+str(Ang_res)+"_"+str(10000)+"_"+str(2000)
-    
+
+    result_name = "sarsa_T" + Ori_s + Dist_s + Ang_s + "_" + str(Nb_r) + "-" + str(Nb_t) + "-" + str(
+        Ori_his) + "-" + str(Ori_res) + "-" + str(Dist_res) + "-" + str(Ang_res) + "_" + str(10000) + "_" + str(2000)
+
     data = {
-        "RESULT_NAME":      result_name,
-        "METHOD":           "SARSA",
-        "ADJ":              True,
-        "ORI":              Ori,
-        "DIST":             Dist,
-        "LOCATION":         Ang,
-        "n_actions_r":      Nb_r,
-        "n_actions_t":      Nb_t,
-        "n_ori":            Ori_his,
-        "ori_res":          Ori_res,
-        "dist_res":         Dist_res,
-        "angle_res":        Ang_res,
-        "chunksize":        10000,
-        "Episodes":         2000,
-        "receiver":         {
-                            "antennea": 8,
-                            "layers": 3
-                            },
-        "transmitter":      {
-                            "antennea": 32,
-                            "layers": 4
-                            }
+        "RESULT_NAME": result_name,
+        "METHOD": "SARSA",
+        "ADJ": True,
+        "ORI": Ori,
+        "DIST": Dist,
+        "LOCATION": Ang,
+        "n_actions_r": Nb_r,
+        "n_actions_t": Nb_t,
+        "n_ori": Ori_his,
+        "ori_res": Ori_res,
+        "dist_res": Dist_res,
+        "angle_res": Ang_res,
+        "chunksize": 10000,
+        "Episodes": 2000,
+        "receiver": {
+            "antennea": 8,
+            "layers": 3
+        },
+        "transmitter": {
+            "antennea": 32,
+            "layers": 4
+        }
     }
-    
-    #print("Settings/"+result_name)
-    with open("./Settings/"+result_name+".json", 'w') as outfile:
-        json.dump(data, outfile, indent = Pretty_parameter)
+
+    # print("Settings/"+result_name)
+    with open("./Settings/" + result_name + ".json", 'w') as outfile:
+        json.dump(data, outfile, indent=Pretty_parameter)
+
 
 def dump_pickle(data, path, filename):
     """
@@ -448,7 +451,7 @@ def noisy_ori(ori_vector):
         # generate the additive orientation noise as MA filtered random walk
         a = np.zeros(len(z_axis))
         for i in range(len(z_axis)):
-            a[i] = np.sum(a_bar[i-K:i]) / K
+            a[i] = np.sum(a_bar[i - K:i]) / K
 
         # Add the noise to original data and wrap angles to range [-pi:pi] for correct signs
         res_z_axis = z_axis + a
@@ -633,3 +636,22 @@ def quadriga_simulation(ENGINE, pos_log_name, data_name, para, multi_user):
         raise Exception("ENGINE name is incorrect")
 
     return simulation_data
+
+
+@njit()
+def get_H(Nr, Nt, Beta, alpha_rx, alpha_tx):
+    # Calculate channel matrix H
+    H = np.zeros((Nr, Nt), dtype=np.complex64)
+    for i in range(len(Beta)):
+        H += Beta[i] * np.dot(alpha_rx[i].T, np.conjugate(alpha_tx[i]))
+    H = H * np.sqrt(Nr * Nt)
+    return H
+
+
+@njit()
+def jit_reward(W, F, H, P_t):
+    R = np.zeros((len(F[:, 0]), len(W[:, 0])))
+    for p in range(len(F[:, 0])):
+        for q in range(len(W[:, 0])):
+            R[p, q] = np.absolute((np.dot(np.dot(np.conjugate(W[q, :]).T, H), F[p, :]) * np.sqrt(P_t))) ** 2
+    return R

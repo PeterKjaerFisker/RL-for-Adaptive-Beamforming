@@ -6,6 +6,7 @@
 # %% Imports
 from collections import defaultdict
 import numpy as np
+from tqdm import tqdm
 
 import helpers
 
@@ -298,7 +299,7 @@ class Track():
 
         # Position
         if self.env.lower() == "urban":
-            pos = np.random.uniform(-self.radius_limit*np.sqrt(2), self.radius_limit*np.sqrt(2), size=2)
+            pos = np.random.uniform(-self.radius_limit * np.sqrt(2), self.radius_limit * np.sqrt(2), size=2)
 
         elif self.env.lower() == "highway":
             # Choose a start position on the edge based on a random chosen angle
@@ -411,59 +412,64 @@ class Environment():
         """
         self.AoA = 0
         self.AoD = 0
-        self.Beta = 0
+        self.Betas = 0
         self.W = W
         self.F = F
         self.Nt = Nt
         self.Nr = Nr
         self.lambda_ = 3e8 / fc
         self.P_t = P_t
+        self.reward_matrix = 0
 
-    def _get_reward(self, stepnr, beam_nr):
-        """
-        The same as take_action except this one does all the work
+    def create_reward_matrix(self):
+        episodes = len(self.AoA)
+        total_steps = len(self.AoA[0])
+        combiner_length = len(self.W[:, 0])
+        precoder_length = len(self.F[:, 0])
 
-        Parameters
-        ----------
-        same
+        R = np.zeros((episodes, total_steps, precoder_length, combiner_length))
+        for path_idx in range(episodes):
+            for stepnr in tqdm(range(total_steps), desc="Steps"):
+                Beta = self.Betas[path_idx][0][stepnr, :]
 
-        Returns
-        -------
-        same
+                # Calculate steering vectors for transmitter and receiver
+                alpha_rx = helpers.steering_vectors2d(direction=-1, theta=self.AoA[path_idx][stepnr, :],
+                                                      N=self.Nr, lambda_=self.lambda_)
+                alpha_tx = helpers.steering_vectors2d(direction=1, theta=self.AoD[path_idx][0][stepnr, :],
+                                                      N=self.Nt, lambda_=self.lambda_)
+                alpha_rx = np.array(alpha_rx, np.csingle)
+                alpha_tx = np.array(alpha_tx, np.csingle)
+                alpha_rx = alpha_rx.reshape((34, 1, 8))
+                alpha_tx = alpha_tx.reshape((34, 1, 32))
+                Beta = np.array(Beta, np.csingle)
 
-        """
-        # Calculate steering vectors for transmitter and receiver
-        alpha_rx = helpers.steering_vectors2d(direction=-1, theta=self.AoA[stepnr, :],
-                                              N=self.Nr, lambda_=self.lambda_)
-        alpha_tx = helpers.steering_vectors2d(direction=1, theta=self.AoD[stepnr, :],
-                                              N=self.Nt, lambda_=self.lambda_)
+                H = helpers.get_H(
+                    self.Nr,
+                    self.Nt,
+                    Beta,
+                    alpha_rx,
+                    alpha_tx)
 
-        # Calculate channel matrix H
-        H = np.zeros((self.Nr, self.Nt), dtype=np.complex128)
-        for i in range(len(self.Beta[stepnr, :])):
-            H += self.Beta[stepnr, i] * (alpha_rx[i].T @ np.conjugate(alpha_tx[i]))
-        H = H * np.sqrt(self.Nr * self.Nt)
+                self.W = np.array(self.W, np.csingle)
+                self.F = np.array(self.F, np.csingle)
+                H = np.array(H, np.csingle)
+                R[path_idx, stepnr] = helpers.jit_reward(self.W, self.F, H, self.P_t)
 
-        # Calculate the reward
-        R = np.zeros([len(self.F[:, 0]), len(self.W[:, 0])])
-        for p in range(len(self.F[:, 0])):
-            for q in range(len(self.W[:, 0])):
-                R[p, q] = np.linalg.norm(np.sqrt(self.P_t) * np.conjugate(self.W[q, :]).T
-                                         @ H @ self.F[p, :]) ** 2
-        
-        return R[beam_nr[1],beam_nr[0]], np.max(R), np.min(R), np.mean(R)
+        self.reward_matrix = R
 
-    def take_action(self, stepnr, beam_nr):
+    def take_action(self, path_idx, stepnr, beam_nr):
         """
         Calculates the reward (signal strength) maximum achievable reward,
         minimum achievable reward and average reward based on an action
 
         Parameters
         ----------
+        path_idx : Int
+            Path number from data set
         stepnr : Int
             Time step number
-        beam_nr : Int
-            Beam number
+        beam_nr : Tuple of ints
+            Beam numbers for receiver and transmitter respectively
 
         Returns
         -------
@@ -477,11 +483,10 @@ class Environment():
             The average reward
 
         """
-        reward, max_reward, min_reward, mean_reward = self._get_reward(stepnr, beam_nr)
+        R = self.reward_matrix[path_idx, stepnr]
+        return R[beam_nr[1], beam_nr[0]], np.max(R), np.min(R), np.mean(R)
 
-        return reward, max_reward, min_reward, mean_reward
-
-    def update_data(self, AoA, AoD, Beta):
+    def update_data(self, AoA, AoD, Betas):
         """
         Updates the environment information
 
@@ -491,7 +496,7 @@ class Environment():
             Angle of arrival
         AoD : TYPE
             Angle of depature
-        Beta : TYPE
+        Betas : TYPE
             Channel parameters
 
         Returns
@@ -501,12 +506,13 @@ class Environment():
         """
         self.AoA = AoA
         self.AoD = AoD
-        self.Beta = Beta
+        self.Betas = Betas
 
 
 # %% State Class
 class State:
-    def __init__(self, intial_state, orientation_flag=False, distance_flag=False, location_flag=False, r_hist_flag=False, t_hist_flag=False):
+    def __init__(self, intial_state, orientation_flag=False, distance_flag=False, location_flag=False,
+                 r_hist_flag=False, t_hist_flag=False):
         """
         Initiate the state object, containing the current state
 
@@ -551,7 +557,7 @@ class State:
         list
             A state
 
-        """ #TODO tilføj duel beam
+        """  # TODO tilføj duel beam
         dist, ori, angle = para
         beam_r = beam_nr[0]
         beam_t = beam_nr[1]
@@ -565,7 +571,7 @@ class State:
         #     state_a = self.state[0][1:]
 
         # state_a.append(beam_r)
-        
+
         # Dual beam compatible version i think
         # if retning is not None:
         #     state_a = self.state[0][2:-2]
@@ -576,7 +582,7 @@ class State:
 
         # state_a.append(beam_r)
         # state_a.append(beam_t)
-        
+
         if self.r_hist_flag:
             if len(self.state[0]) > 1:
                 if retning is not None:
@@ -591,7 +597,7 @@ class State:
                 state_r.append(beam_r)
         else:
             state_r = ["N/A"]
-            
+
         if self.t_hist_flag:
             if len(self.state[1]) > 1:
                 if retning is not None:
@@ -723,14 +729,14 @@ class Agent:
         """
         beam_dir_r = np.random.choice(self.action_space_r)
         beam_dir_t = np.random.choice(self.action_space_t)
-        beam_dirs = tuple((beam_dir_r,beam_dir_t))
+        beam_dirs = tuple((beam_dir_r, beam_dir_t))
         r_est = self.Q[state, beam_dirs][0]
 
         for action_r in self.action_space_r:
             for action_t in self.action_space_t:
-                if self.Q[state, tuple((action_r,action_t))][0] > r_est:
-                    beam_dirs = tuple((action_r,action_t))
-                    r_est = self.Q[state, tuple((action_r,action_t))][0]
+                if self.Q[state, tuple((action_r, action_t))][0] > r_est:
+                    beam_dirs = tuple((action_r, action_t))
+                    r_est = self.Q[state, tuple((action_r, action_t))][0]
 
         return beam_dirs
 
@@ -753,7 +759,7 @@ class Agent:
         if np.random.random() > self.eps:
             return self.greedy(state)
         else:
-            return tuple((np.random.choice(self.action_space_r),np.random.choice(self.action_space_t)))
+            return tuple((np.random.choice(self.action_space_r), np.random.choice(self.action_space_t)))
 
     def get_action_list_adj(self, last_action, Nlayers, action_space):
         """
@@ -796,7 +802,8 @@ class Agent:
         # Check if current layer is between the bottom and top layers
         if current_layer != 1 and current_layer != Nlayers:
             actions.append(action_space[int(np.floor((last_action - 2) / 2))])  # Down
-            actions.append(action_space[int((last_action * 2) + 3)])  # TODO Up Right TODO måske byt om så ting er i rækkefølge
+            actions.append(
+                action_space[int((last_action * 2) + 3)])  # TODO Up Right TODO måske byt om så ting er i rækkefølge
             actions.append(action_space[int((last_action * 2) + 2)])  # Up Left
 
             dir_list = [0, 1, 2, 3, 4, 5]
@@ -842,16 +849,16 @@ class Agent:
 
         choice_r = np.random.randint(0, len(dir_list_r))
         choice_t = np.random.randint(0, len(dir_list_t))
-        next_action = tuple((actions_r[choice_r],actions_t[choice_t]))
-        next_dir = tuple((dir_list_r[choice_r],dir_list_t[choice_t]))         
+        next_action = tuple((actions_r[choice_r], actions_t[choice_t]))
+        next_dir = tuple((dir_list_r[choice_r], dir_list_t[choice_t]))
         r_est = self.Q[state, next_dir][0]
 
         for idx_r, last_dir_r in enumerate(dir_list_r):
             for idx_t, last_dir_t in enumerate(dir_list_t):
-                if self.Q[state, tuple((last_dir_r,last_dir_t))][0] > r_est:
-                    next_action = tuple((actions_r[idx_r],actions_t[idx_t]))
-                    next_dir = tuple((last_dir_r,last_dir_t))
-                    r_est = self.Q[state, tuple((last_dir_r,last_dir_t))][0]
+                if self.Q[state, tuple((last_dir_r, last_dir_t))][0] > r_est:
+                    next_action = tuple((actions_r[idx_r], actions_t[idx_t]))
+                    next_dir = tuple((last_dir_r, last_dir_t))
+                    r_est = self.Q[state, tuple((last_dir_r, last_dir_t))][0]
 
         return next_action, next_dir
 
@@ -885,9 +892,9 @@ class Agent:
 
             choice_r = np.random.randint(0, len(dir_list_r))
             choice_t = np.random.randint(0, len(dir_list_t))
-            
-            next_action = tuple((actions_r[choice_r],actions_t[choice_t]))
-            next_dir = tuple((dir_list_r[choice_r],dir_list_t[choice_t]))
+
+            next_action = tuple((actions_r[choice_r], actions_t[choice_t]))
+            next_dir = tuple((dir_list_r[choice_r], dir_list_t[choice_t]))
 
         return next_action, next_dir
 
