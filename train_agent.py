@@ -75,8 +75,8 @@ if __name__ == "__main__":
     # ----------- Load the data -----------
     t_start = time()
     # Load the data
-    channel_par, pos_log = helpers.load_data(f"Data_set_gen_2/data_pos_{FILENAME}.mat",
-                                             f"Data_set_gen_2/data_{FILENAME}")
+    channel_par, pos_log = helpers.load_data(f"data_pos_{FILENAME}.mat",
+                                             f"data_{FILENAME}")
     print(f"Took: {time() - t_start}", flush=True)
 
     # Re-affirm that "M" matches data
@@ -360,30 +360,42 @@ if __name__ == "__main__":
             previous_beam_nr = beam_nr
             previous_action = action_index
 
-    # %% Save pickle
-    data = {
-        'Agent': Agent,
+    # %% Save pickle and hdf5
+    data_reward = {
         'R_log': R_log,
         'R_max': R_max_log,
         'R_min': R_min_log,
         'R_mean': R_mean_log,
-        'agent_settings': agent_settings,
-        'channel_settings': channel_settings,
         'action_log_r': action_log_r,
         'action_log_t': action_log_t,
         'beam_log_r': beam_log_r,
         'beam_log_t': beam_log_t
     }
+    
+    data_agent = {
+    'Agent': Agent,
+    'agent_settings': agent_settings,
+    'channel_settings': channel_settings,
+    }
 
     try:
         if "NLOS" in channel_settings["scenarios"][0]:
-            helpers.dump_pickle(data, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
         else:
-            helpers.dump_pickle(data, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
     except OSError as e:
         print(e)
         print("Saving to root folder instead")
         if "NLOS" in channel_settings["scenarios"][0]:
-            helpers.dump_pickle(data, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
         else:
-            helpers.dump_pickle(data, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
+            
+    
+            
+            
+            

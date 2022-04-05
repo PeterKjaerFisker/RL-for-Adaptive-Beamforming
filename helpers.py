@@ -12,6 +12,7 @@ import dill as pickle
 import numpy as np
 import scipy.io as scio
 from numba import njit
+import h5py
 
 import classes
 import plots
@@ -19,6 +20,10 @@ import json
 
 
 # %% Functions
+
+
+
+
 def settings_file_generator(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty_parameter=None):
     if isinstance(Nb_r, list):
         for Nb_r_count in Nb_r:
@@ -94,7 +99,7 @@ def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty
         Ang_s = "T"
 
     result_name = "sarsa_T" + Ori_s + Dist_s + Ang_s + "_" + str(Nb_r) + "-" + str(Nb_t) + "-" + str(
-        Ori_his) + "-" + str(Ori_res) + "-" + str(Dist_res) + "-" + str(Ang_res) + "_" + str(10000) + "_" + str(2000)
+        Ori_his) + "-" + str(Ori_res) + "-" + str(Dist_res) + "-" + str(Ang_res) + "_" + str(7000) + "_" + str(1000)
 
     data = {
         "RESULT_NAME": result_name,
@@ -109,8 +114,8 @@ def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty
         "ori_res": Ori_res,
         "dist_res": Dist_res,
         "angle_res": Ang_res,
-        "chunksize": 10000,
-        "Episodes": 2000,
+        "chunksize": 7000,
+        "Episodes": 1000,
         "receiver": {
             "antennea": 8,
             "layers": 3
@@ -147,7 +152,12 @@ def dump_pickle(data, path, filename):
     with open(path + filename, 'wb+') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-
+        
+def dump_hdf5(data, path, filename):
+    
+    with h5py.File(path+filename, "a") as f:
+        for key, value in data.items():
+            f.create_dataset(f'/{key}', data = value)
 
 def load_pickle(path_to_pickle, filename):
     """
@@ -168,8 +178,35 @@ def load_pickle(path_to_pickle, filename):
     """
     with open(path_to_pickle + filename, 'rb') as f:
         data = pickle.load(f)
+        
 
     return data
+
+
+def bulk_loader(dir_path):
+    folder = os.fsencode(dir_path)
+    # R_log_db = data.pop('R_log')
+    # R_max_log_db = data.pop('R_max')
+    # R_min_log_db = data.pop('R_min')
+    # R_mean_log_db = data.pop('R_mean')
+
+    for idx, file in enumerate(os.listdir(folder)):
+        filename = os.fsdecode(file)
+        data = load_pickle(dir_path, filename)
+        print(data)
+        # if idx<1:
+        #     R_log_db = data.pop('R_log')
+        #     R_max_log_db = data.pop('R_max')
+        #     R_min_log_db = data.pop('R_min')
+        #     R_mean_log_db = data.pop('R_mean')
+        # else:
+        #     R_log_db = np.append(R_log_db, data.pop('R_log'), axis=0)
+        #     # R_max_log_db = np.stack((R_max_log_db,data.pop('R_max')))
+        #     # R_min_log_db = np.stack((R_min_log_db,data.pop('R_min')))
+        #     # R_mean_log_db = np.stack((R_mean_log_db,data.pop('R_mean')))
+            
+    return 3
+            
 
 
 def state_to_index(state):
@@ -527,7 +564,7 @@ def load_data(pos_log_name, data_name):
     try:
         print("Loading data")
         pos_log = scio.loadmat("Data_sets/" + pos_log_name)
-        pos_log = pos_log["pos_log"]
+        pos_log = pos_log["pos_log"] # "pos_log_new" hvis nu samlet data køres, pos_log hvis gammel
 
     except IOError:
         print(f"Datafile {pos_log_name} not found")
