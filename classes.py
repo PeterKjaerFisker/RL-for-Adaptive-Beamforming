@@ -439,8 +439,8 @@ class Environment():
                                                       N=self.Nt, lambda_=self.lambda_)
                 alpha_rx = np.array(alpha_rx, np.csingle)
                 alpha_tx = np.array(alpha_tx, np.csingle)
-                alpha_rx = alpha_rx.reshape((34, 1, 8))
-                alpha_tx = alpha_tx.reshape((34, 1, 32))
+                alpha_rx = alpha_rx.reshape((len(alpha_rx), 1, self.Nr))
+                alpha_tx = alpha_tx.reshape((len(alpha_tx), 1, self.Nt))
                 Beta = np.array(Beta, np.csingle)
 
                 H = helpers.get_H(

@@ -48,7 +48,7 @@ def settings_file_generator(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pre
     #             create_agent_setting(0,0,0,0,Dist_res_count,Ang_res_count,Pretty_parameter)
 
 
-def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty_parameter=None):
+def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, episodes, chunksize, Pretty_parameter=None):
     """
     Saves an agent settings file, containing the specified settings from inputs
 
@@ -99,7 +99,7 @@ def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty
         Ang_s = "T"
 
     result_name = "sarsa_T" + Ori_s + Dist_s + Ang_s + "_" + str(Nb_r) + "-" + str(Nb_t) + "-" + str(
-        Ori_his) + "-" + str(Ori_res) + "-" + str(Dist_res) + "-" + str(Ang_res) + "_" + str(7000) + "_" + str(1000)
+        Ori_his) + "-" + str(Ori_res) + "-" + str(Dist_res) + "-" + str(Ang_res) + "_" + str(chunksize) + "_" + str(episodes())
 
     data = {
         "RESULT_NAME": result_name,
@@ -114,8 +114,8 @@ def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty
         "ori_res": Ori_res,
         "dist_res": Dist_res,
         "angle_res": Ang_res,
-        "chunksize": 7000,
-        "Episodes": 1000,
+        "chunksize": chunksize,
+        "Episodes": episodes,
         "receiver": {
             "antennea": 8,
             "layers": 3
@@ -130,6 +130,26 @@ def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty
     with open("./Settings/" + result_name + ".json", 'w') as outfile:
         json.dump(data, outfile, indent=Pretty_parameter)
 
+def bulk_loader(path_to_dir):
+    try:
+        os.remove('plot_data.hdf5')
+    except Exception as e:
+        print(e)
+    myfile = h5py.File('plot_data.hdf5','a')
+    folder = os.fsencode(path_to_dir)
+    
+    for idx, file in enumerate(os.listdir(folder)):
+        filename = os.fsdecode(file)
+        try:
+            del myfile[f'{idx}']
+            myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
+        except KeyError:
+            myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
+            
+        #if myfile[f'{idx}']
+        # myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
+    
+    return myfile
 
 def dump_pickle(data, path, filename):
     """
@@ -158,6 +178,8 @@ def dump_hdf5(data, path, filename):
     with h5py.File(path+filename, "a") as f:
         for key, value in data.items():
             f.create_dataset(f'/{key}', data = value)
+        f.close()
+    
 
 def load_pickle(path_to_pickle, filename):
     """
@@ -180,33 +202,7 @@ def load_pickle(path_to_pickle, filename):
         data = pickle.load(f)
         
 
-    return data
-
-
-def bulk_loader(dir_path):
-    folder = os.fsencode(dir_path)
-    # R_log_db = data.pop('R_log')
-    # R_max_log_db = data.pop('R_max')
-    # R_min_log_db = data.pop('R_min')
-    # R_mean_log_db = data.pop('R_mean')
-
-    for idx, file in enumerate(os.listdir(folder)):
-        filename = os.fsdecode(file)
-        data = load_pickle(dir_path, filename)
-        print(data)
-        # if idx<1:
-        #     R_log_db = data.pop('R_log')
-        #     R_max_log_db = data.pop('R_max')
-        #     R_min_log_db = data.pop('R_min')
-        #     R_mean_log_db = data.pop('R_mean')
-        # else:
-        #     R_log_db = np.append(R_log_db, data.pop('R_log'), axis=0)
-        #     # R_max_log_db = np.stack((R_max_log_db,data.pop('R_max')))
-        #     # R_min_log_db = np.stack((R_min_log_db,data.pop('R_min')))
-        #     # R_mean_log_db = np.stack((R_mean_log_db,data.pop('R_mean')))
-            
-    return 3
-            
+    return data       
 
 
 def state_to_index(state):

@@ -8,21 +8,24 @@ import sys
 
 import helpers
 import plots
+import h5py
 
 cmd_input = sys.argv
 if len(cmd_input) > 1:
     DATA_NAME = sys.argv[1]
 else:
-    DATA_NAME = "pedestrian_LOS_sarsa_TTFF_3-3-8-8-16_5000_1000"
+    DATA_NAME = "car_urban_NLOS_sarsa_TFFF_2-2-0-0-0-0_10000_2000"
 
-# %% Load pickle
-data = helpers.load_pickle('Results/', f'{DATA_NAME}_results.pickle')
-Agent = data['Agent']
-R_log_db = data['R_log']
-R_max_log_db = data['R_max']
-R_min_log_db = data['R_min']
-R_mean_log_db = data['R_mean']
-#setting = data['settings']
+# %% Load results
+data_agent = helpers.load_pickle('Results/', f'{DATA_NAME}_results.pickle')
+data_reward = h5py.File(f'Results/{DATA_NAME}_results.hdf5', 'a')
+Agent = data_agent.pop('Agent')
+R_log_db = data_reward['R_log']
+R_max_log_db = data_reward['R_max']
+R_min_log_db = data_reward['R_min']
+R_mean_log_db = data_reward['R_mean']
+setting = data_agent.pop('agent_settings')
+
 Save = False
 
 # %% PLOT
@@ -51,6 +54,8 @@ plots.stability(Save, R_log_db, 50)
 plots.mean_reward(Save, R_max_log_db, R_mean_log_db, R_min_log_db, R_log_db,
                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
                   db=True)
+
+
 
 # plots.positions(pos_log, r_lim)
 

@@ -6,11 +6,44 @@
 
 # %% Imports
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import operator as o
+import os
 
 import numpy as np
 
 
 # %% Functions
+
+
+
+def barplot(save, data_arrays, span):
+    '''
+    Create a barchart for data across different categories with
+    multiple conditions for each category.
+
+    @param ax: The plotting axes from matplotlib.
+    @param dpoints: The data set as an (n, 3) numpy array
+    '''
+    N = len(data_arrays)
+    M = len(data_arrays[0])
+    width = 0.25
+    ind = np.arange(M)
+    
+    for dataset in range(N):
+        xvals = data_arrays[dataset]
+        bar = plt.bar(ind+width*dataset, xvals, width)
+    
+    
+    plt.xticks(ind+width,span)
+    plt.title("Performance")
+    plt.xlabel("Range")
+    plt.ylabel("Average reward per episode")
+    
+    if save == True:
+        plt.savefig("Figures/Barplot.pdf")
+    plt.show()
+
 def stability(save, data, average_window):
     """
     Plots the 'stability' for each episode, by first calculating a low-pass
