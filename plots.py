@@ -15,8 +15,6 @@ import numpy as np
 
 # %% Functions
 
-
-
 def barplot(save, data_arrays, span):
     '''
     Create a barchart for data across different categories with
@@ -77,6 +75,9 @@ def stability(save, data, average_window):
         plt.savefig("Figures/Stability.pdf")
     plt.show()
 
+def ECDF_bulk(save, data, span):
+    return None
+
 def ECDF(save, data, sections):
 
     """
@@ -87,8 +88,11 @@ def ECDF(save, data, sections):
     :param sections: number of ECDFS to render
     :return: Nothing
     """
+    
     data_len = data.shape[0]
     section_size = int(np.floor(data_len/sections))
+    
+    
     
     plt.figure()
     plt.title("x-dB Mis-alignment probability - ECDF")

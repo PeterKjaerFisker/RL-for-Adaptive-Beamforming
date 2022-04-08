@@ -8,3 +8,8 @@ results.pickle
 Mean Rewards db.pdf
 *.pdf
 *.pickle
+*.hdf5
+*.json
+*.pickle
+*.json
+debug_script.py

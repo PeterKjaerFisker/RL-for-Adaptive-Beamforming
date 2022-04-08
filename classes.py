@@ -437,11 +437,9 @@ class Environment():
                                                       N=self.Nr, lambda_=self.lambda_)
                 alpha_tx = helpers.steering_vectors2d(direction=1, theta=self.AoD[path_idx][0][stepnr, :],
                                                       N=self.Nt, lambda_=self.lambda_)
-                alpha_rx = np.array(alpha_rx, np.csingle)
-                alpha_tx = np.array(alpha_tx, np.csingle)
+
                 alpha_rx = alpha_rx.reshape((len(alpha_rx), 1, self.Nr))
                 alpha_tx = alpha_tx.reshape((len(alpha_tx), 1, self.Nt))
-                Beta = np.array(Beta, np.csingle)
 
                 H = helpers.get_H(
                     self.Nr,
@@ -450,11 +448,8 @@ class Environment():
                     alpha_rx,
                     alpha_tx)
 
-                self.W = np.array(self.W, np.csingle)
-                self.F = np.array(self.F, np.csingle)
-                H = np.array(H, np.csingle)
                 R[path_idx, stepnr] = helpers.jit_reward(self.W, self.F, H, self.P_t)
-
+                
         self.reward_matrix = R
 
     def take_action(self, path_idx, stepnr, beam_nr):
@@ -557,31 +552,12 @@ class State:
         list
             A state
 
-        """  # TODO tilføj duel beam
+        """
         dist, ori, angle = para
         beam_r = beam_nr[0]
         beam_t = beam_nr[1]
         retning_r = retning[0]
         retning_t = retning[1]
-
-        # if retning is not None:
-        #     state_a = self.state[0][1:-1]
-        #     state_a.append(retning_r)
-        # else:
-        #     state_a = self.state[0][1:]
-
-        # state_a.append(beam_r)
-
-        # Dual beam compatible version i think
-        # if retning is not None:
-        #     state_a = self.state[0][2:-2]
-        #     state_a.append(retning_r)
-        #     state_a.append(retning_t)
-        # else:
-        #     state_a = self.state[0][2:]
-
-        # state_a.append(beam_r)
-        # state_a.append(beam_t)
 
         if self.r_hist_flag:
             if len(self.state[0]) > 1:

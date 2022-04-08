@@ -20,35 +20,7 @@ import json
 
 
 # %% Functions
-
-
-
-
-def settings_file_generator(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, Pretty_parameter=None):
-    if isinstance(Nb_r, list):
-        for Nb_r_count in Nb_r:
-            create_agent_setting(Nb_r_count, Nb_r_count, 0, 0, 0, 0, Pretty_parameter)
-
-    # if isinstance(Nb_t,list):
-    #     for Nb_t_count in Nb_t:
-    #         create_agent_setting(0,Nb_t_count,0,0,0,0,Pretty_parameter)
-
-    # if isinstance(Ori_his,list):
-    #     for Ori_his_count in Ori_his:
-    #         for Ori_res_count in Ori_res:
-    #             create_agent_setting(0,0,Ori_his_count,Ori_res_count,0,0,Pretty_parameter)
-
-    # if isinstance(Dist_res,list):
-    #     for Dist_res_count in Dist_res:
-    #         create_agent_setting(0,0,0,0,Dist_res_count,0,Pretty_parameter)
-
-    # if isinstance(Dist_res,list):
-    #     for Dist_res_count in Dist_res:
-    #         for Ang_res_count in Ang_res:
-    #             create_agent_setting(0,0,0,0,Dist_res_count,Ang_res_count,Pretty_parameter)
-
-
-def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, episodes, chunksize, Pretty_parameter=None):
+def create_agent_setting(method, Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, chunksize, episodes, Pretty_parameter=None):
     """
     Saves an agent settings file, containing the specified settings from inputs
 
@@ -74,6 +46,13 @@ def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, episod
     None.
 
     """
+    method = method.upper()
+    
+    if Nb_r or Nb_t:
+        Beam_s = "T"
+    else:
+        Beam_s = "F"
+    
     if Ori_res == 0:
         Ori = False
         Ori_s = "F"
@@ -98,12 +77,12 @@ def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, episod
         Ang = True
         Ang_s = "T"
 
-    result_name = "sarsa_T" + Ori_s + Dist_s + Ang_s + "_" + str(Nb_r) + "-" + str(Nb_t) + "-" + str(
-        Ori_his) + "-" + str(Ori_res) + "-" + str(Dist_res) + "-" + str(Ang_res) + "_" + str(chunksize) + "_" + str(episodes())
+    result_name = method + '_' + Beam_s + Ori_s + Dist_s + Ang_s + "_" + str(Nb_r) + "-" + str(Nb_t) + "-" + str(
+        Ori_his) + "-" + str(Ori_res) + "-" + str(Dist_res) + "-" + str(Ang_res) + "_" + str(chunksize) + "_" + str(episodes)
 
     data = {
         "RESULT_NAME": result_name,
-        "METHOD": "SARSA",
+        "METHOD": method,
         "ADJ": True,
         "ORI": Ori,
         "DIST": Dist,
@@ -126,7 +105,6 @@ def create_agent_setting(Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, episod
         }
     }
 
-    # print("Settings/"+result_name)
     with open("./Settings/" + result_name + ".json", 'w') as outfile:
         json.dump(data, outfile, indent=Pretty_parameter)
 
@@ -145,9 +123,6 @@ def bulk_loader(path_to_dir):
             myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
         except KeyError:
             myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
-            
-        #if myfile[f'{idx}']
-        # myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
     
     return myfile
 
@@ -177,9 +152,13 @@ def dump_hdf5(data, path, filename):
     
     with h5py.File(path+filename, "a") as f:
         for key, value in data.items():
-            f.create_dataset(f'/{key}', data = value)
+            try:
+                del f[f'{key}']
+                f.create_dataset(f'/{key}', data = value)
+            except KeyError:
+                f.create_dataset(f'/{key}', data = value)
         f.close()
-    
+
 
 def load_pickle(path_to_pickle, filename):
     """
@@ -241,7 +220,7 @@ def steering_vectors2d(direction, theta, N, lambda_):
     r[0, :] = np.linspace(0, (N - 1) * lambda_ / 2, N)
 
     if isinstance(theta, np.ndarray):
-        e = direction * np.matrix([np.cos(theta), np.sin(theta)])
+        e = direction * np.matrix([np.cos(theta), np.sin(theta)]) # np.matrix laver måske problemer i forhold til numba @jit
         result = np.exp(-2j * (np.pi / lambda_) * e.T @ r)
     elif isinstance(theta, float):
         e = direction * np.array([[np.cos(theta), np.sin(theta)]])
@@ -249,7 +228,7 @@ def steering_vectors2d(direction, theta, N, lambda_):
     else:
         raise Exception("Theta is not an array or an ")
 
-    return result
+    return np.array(result, np.cdouble)
 
 
 def codebook(N, k, lambda_):
@@ -262,14 +241,14 @@ def codebook(N, k, lambda_):
     :return: Codebook matrix
     """
 
-    codeword = np.zeros(N, dtype=np.complex64)
+    codeword = np.zeros(N, dtype=np.cdouble)
 
     if np.ceil(np.log2(N)) != np.floor(np.log2(N)):
         raise Exception("N not a power of 2")
 
     N_codeword = 2 ** (k + 1) - 2
 
-    codebook = np.zeros((N_codeword, N), dtype=np.complex64)
+    codebook = np.zeros((N_codeword, N), dtype=np.cdouble)
 
     for i in range(1, k + 1):
         l = np.log2(N) - i
@@ -296,7 +275,7 @@ def codebook(N, k, lambda_):
         for n in range(2, 2 ** i + 1):
             codebook[(2 ** i) - 3 + n, :] = codeword * (
                     np.sqrt(N) * steering_vectors2d(1, np.arccos((((2 * (n - 1) / (2 ** i)) + 1) % 2) - 1), N,
-                                                    lambda_))
+                                                    lambda_)) # TODO kig på denne funktion skal sqrt være 1/ ?
 
     for idx, row in enumerate(codebook):
         codebook[idx, :] = row * 1 / np.linalg.norm(row)
@@ -560,7 +539,7 @@ def load_data(pos_log_name, data_name):
     try:
         print("Loading data")
         pos_log = scio.loadmat("Data_sets/" + pos_log_name)
-        pos_log = pos_log["pos_log"] # "pos_log_new" hvis nu samlet data køres, pos_log hvis gammel
+        pos_log = pos_log["pos_log"]
 
     except IOError:
         print(f"Datafile {pos_log_name} not found")
@@ -674,12 +653,12 @@ def quadriga_simulation(ENGINE, pos_log_name, data_name, para, multi_user):
 @njit()
 def get_H(Nr, Nt, Beta, alpha_rx, alpha_tx):
     # Calculate channel matrix H
-    H = np.zeros((Nr, Nt), dtype=np.complex64)
+    H = np.zeros((Nr, Nt), dtype=np.cdouble)
+    # H = np.zeros((Nr, Nt))
     for i in range(len(Beta)):
         H += Beta[i] * np.dot(alpha_rx[i].T, np.conjugate(alpha_tx[i]))
     H = H * np.sqrt(Nr * Nt)
     return H
-
 
 @njit()
 def jit_reward(W, F, H, P_t):

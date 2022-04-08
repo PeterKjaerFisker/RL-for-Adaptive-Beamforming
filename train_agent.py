@@ -19,8 +19,8 @@ if len(cmd_input) > 1:
     CHANNEL_SETTINGS = sys.argv[1]
     AGENT_SETTINGS = sys.argv[2]
 else:
-    CHANNEL_SETTINGS = "car_urban_LOS_16_users_10000_steps"
-    AGENT_SETTINGS = "sarsa_TFFF_2-2-0-0-0-0_5000_300"
+    CHANNEL_SETTINGS = "car_urban_LOS_32_users_10000_steps"
+    AGENT_SETTINGS = "SARSA_TFFF_2-2-0-0-0-0_5000_1000"
 
 # %% main
 if __name__ == "__main__":
@@ -66,11 +66,6 @@ if __name__ == "__main__":
     Nlr = agent_settings["receiver"]["layers"]  # Receiver
     Nbeam_tot_r = (2 ** (Nlr + 1)) - 2  # Total number of beams for the receiver
     Nbeam_tot_t = (2 ** (Nlt + 1)) - 2  # Total number of beams for the transmitter
-
-    # TODO virker useless
-    # Load Scenario configuration
-    with open(f'Cases/{CASE}.json', 'r') as fp:
-        case = json.load(fp)
 
     # ----------- Load the data -----------
     t_start = time()
@@ -168,7 +163,7 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent = classes.Agent(action_space_r, action_space_t, eps=0.05, alpha=["constant", 0.7])
+    Agent = classes.Agent(action_space_r, action_space_t, eps=0.05, alpha=["constant", 0.05])
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -192,28 +187,12 @@ if __name__ == "__main__":
         The Environment is then updated with the relevant AoA, AoD and channel parameter data.  
         We then go through each position in the track, takes an action, gets a reward and updates the Q-table.
         """
-        # Create the Agent
-        # Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
-
         # Choose data
         path_idx = np.random.randint(0, M)
         data_idx = np.random.randint(0, N - chunksize) if (N - chunksize) else 0
 
-        # # Update the environment data
-        # AoA_Local_episode = AoA_Local[path_idx][data_idx:data_idx + chunksize]
-        # AoD_Global_episode = AoD_Global[path_idx][0][data_idx:data_idx + chunksize]
-        # Betas = coeff[path_idx][0][data_idx:data_idx + chunksize]
-        # Betas = Betas.reshape(Betas.shape + (1,))  # Add dimension "1" to get array of column vectors, needed later.
-        #
-        # Env.update_data(AoA_Local_episode,
-        #                 AoD_Global_episode,
-        #                 Betas)
-
-        # Initiate the State at a random beam sequence
         # TODO dette skal ikke blot være beams men én beam og et antal tidligere "retninger"
-        # State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions))] #TODO tilfæj dual beam
 
-        # Dual beam compatible version i think
         if n_actions_r > 0:
             State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r))]
         else:
@@ -294,7 +273,6 @@ if __name__ == "__main__":
                 end = True
 
             current_state_parameters = [dist, ori, angle]
-            # next_state_parameters = [next_dist, next_ori, next_angle]
 
             # Calculate the action
             if ADJ:
@@ -311,18 +289,10 @@ if __name__ == "__main__":
             R, R_max, R_min, R_mean = Env.take_action(path_idx, n+data_idx, beam_nr)
 
             # Update Q-table
-            if METHOD == "simple":
+            if METHOD == "SIMPLE":
                 Agent.update_simple(helpers.state_to_index(State.state), action_index, R)
 
             elif METHOD == "SARSA":
-                # if ADJ: # Note that next_action here is a direction index and not a beam number
-                #     next_state = State.build_state(beam_nr, next_state_parameters, adj_action_index)
-                #     next_beam, next_action = Agent.e_greedy_adj(helpers.state_to_index(next_state), beam_nr, Nlr, Nlt)
-                # else: # Note that next_action is a beam number and not a direction index
-                #     next_state = State.build_state(beam_nr, next_state_parameters)
-                #     next_action = Agent.e_greedy(helpers.state_to_index(next_state))
-
-                # Agent.update_TD(State, action_index, R, next_state, next_action, end=end)
                 Agent.update_TD(helpers.state_to_index(previous_state),
                                 previous_action,
                                 R,
@@ -332,10 +302,8 @@ if __name__ == "__main__":
 
             elif METHOD == "Q-LEARNING":
                 if ADJ:  # Note that next_action here is a direction index and not a beam number
-                    # next_state = State.build_state(beam_nr, next_state_parameters, adj_action_index)
                     next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt)
                 else:  # Note that next_action is a beam number and not a direction index
-                    # next_state = State.build_state(beam_nr, next_state_parameters)
                     next_action = Agent.greedy(helpers.state_to_index(State.state))
 
                 Agent.update_TD(helpers.state_to_index(previous_state),
