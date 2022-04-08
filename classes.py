@@ -798,7 +798,7 @@ class Agent:
 
         return actions, dir_list
 
-    def greedy_adj(self, state, last_action, Nlr, Nlt):
+    def greedy_adj(self, state, last_action, Nlr, Nlt, genie_reward):
         """
         Calculates the optimal action according to the greedy policy
         when actions are restricted to choosing adjecent beams
@@ -825,22 +825,29 @@ class Agent:
         actions_t, dir_list_t = self.get_action_list_adj(last_action[1], Nlt, self.action_space_t)
 
         choice_r = np.random.randint(0, len(dir_list_r))
-        choice_t = np.random.randint(0, len(dir_list_t))
+        
+        choice_t = np.argmax(genie_reward[[actions_t],actions_r[choice_r]])
+        # choice_t = np.random.randint(0, len(dir_list_t))
+        
         next_action = tuple((actions_r[choice_r], actions_t[choice_t]))
         next_dir = tuple((dir_list_r[choice_r], dir_list_t[choice_t]))
         r_est = self.Q[state, next_dir][0]
 
-
         for idx_r, last_dir_r in enumerate(dir_list_r):
-            for idx_t, last_dir_t in enumerate(dir_list_t):
-                if self.Q[state, tuple((last_dir_r, last_dir_t))][0] > r_est:
-                    next_action = tuple((actions_r[idx_r], actions_t[idx_t]))
-                    next_dir = tuple((last_dir_r, last_dir_t))
-                    r_est = self.Q[state, tuple((last_dir_r, last_dir_t))][0]
+            idx_t = np.argmax(genie_reward[[actions_t],actions_r[idx_r]])
+            if self.Q[state, tuple((last_dir_r, dir_list_t[idx_t]))][0] > r_est:
+                next_action = tuple((actions_r[idx_r], actions_t[idx_t]))
+                next_dir = tuple((last_dir_r, dir_list_t[idx_t]))
+                r_est = self.Q[state, tuple((last_dir_r, dir_list_t[idx_t]))][0]
+            # for idx_t, last_dir_t in enumerate(dir_list_t):
+            #     if self.Q[state, tuple((last_dir_r, last_dir_t))][0] > r_est:
+            #         next_action = tuple((actions_r[idx_r], actions_t[idx_t]))
+            #         next_dir = tuple((last_dir_r, last_dir_t))
+            #         r_est = self.Q[state, tuple((last_dir_r, last_dir_t))][0]
 
         return next_action, next_dir
 
-    def e_greedy_adj(self, state, last_action, Nlr, Nlt):
+    def e_greedy_adj(self, state, last_action, Nlr, Nlt, genie_reward):
         """
         Calculates the optimal action according to the epsilon greedy policy
         when actions are restricted to choosing adjecent beams
@@ -863,7 +870,7 @@ class Agent:
 
         """
         if np.random.random() > self.eps:
-            next_action, next_dir = self.greedy_adj(state, last_action, Nlr, Nlt)
+            next_action, next_dir = self.greedy_adj(state, last_action, Nlr, Nlt, genie_reward)
         else:
             actions_r, dir_list_r = self.get_action_list_adj(last_action[0], Nlr, self.action_space_r)
             actions_t, dir_list_t = self.get_action_list_adj(last_action[1], Nlt, self.action_space_t)

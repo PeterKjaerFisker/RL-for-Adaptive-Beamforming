@@ -123,7 +123,7 @@ def bulk_loader(path_to_dir):
             myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
         except KeyError:
             myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
-    
+
     return myfile
 
 def dump_pickle(data, path, filename):

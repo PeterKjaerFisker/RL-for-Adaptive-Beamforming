@@ -15,7 +15,7 @@ import numpy as np
 
 # %% Functions
 
-def barplot(save, data_arrays, span):
+def barplot(save, data_arrays, span, labels):
     '''
     Create a barchart for data across different categories with
     multiple conditions for each category.
@@ -32,11 +32,13 @@ def barplot(save, data_arrays, span):
         xvals = data_arrays[dataset]
         bar = plt.bar(ind+width*dataset, xvals, width)
     
+    plt.legend(labels, loc = 'upper right')
+    plt.xticks(ind+width,span, rotation = 30)
+    plt.tight_layout()
     
-    plt.xticks(ind+width,span)
-    plt.title("Performance")
-    plt.xlabel("Range")
-    plt.ylabel("Average reward per episode")
+    plt.title("Average misalignment w. and w.o. genie-aided base station")
+    plt.xlabel("Episode range [-,-]")
+    plt.ylabel("Average absolute misalignment [dB]")
     
     if save == True:
         plt.savefig("Figures/Barplot.pdf")

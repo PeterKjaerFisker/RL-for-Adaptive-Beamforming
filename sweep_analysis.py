@@ -18,8 +18,8 @@ bulk_data = helpers.bulk_loader('Results/Test/')
 
 # %% Data analysis
 
-# span = [(0,100),(100,200),(200,300),(300,400),(400,500),(500,600),(600,700),(700,800),(800,900),(900,1000)]
-span = [(0,50),(50,100),(100,150),(150,200),(200,250),(250,300)]
+span = [(0,100),(100,200),(200,300),(300,400),(400,500),(500,600),(600,700),(700,800),(800,900),(900,1000)]
+# span = [(0,50),(50,100),(100,150),(150,200),(200,250),(250,300)]
 # span = [(0,1000),(4500,5500),(9000,10000)]
 
 dim1 = len(bulk_data)
@@ -45,8 +45,8 @@ for test in range(dim1):
     for idx, (start,stop) in enumerate(span):
         plot_array[test,idx] = np.average(averaged_episodes[start:stop])
 
-
-plots.barplot(False, plot_array, span)
+labels = ['With genie-aided','Without genie-aided']
+plots.barplot(False, plot_array, span, labels)
 
 bulk_data.close()
 

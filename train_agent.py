@@ -20,7 +20,7 @@ if len(cmd_input) > 1:
     AGENT_SETTINGS = sys.argv[2]
 else:
     CHANNEL_SETTINGS = "car_urban_LOS_32_users_10000_steps"
-    AGENT_SETTINGS = "SARSA_TFFF_2-2-0-0-0-0_5000_1000"
+    AGENT_SETTINGS = "SARSA_TFFF_2-2-0-0-0-0_5000_300"
 
 # %% main
 if __name__ == "__main__":
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent = classes.Agent(action_space_r, action_space_t, eps=0.05, alpha=["constant", 0.05])
+    Agent = classes.Agent(action_space_r, action_space_t, eps=0.1, alpha=["constant", 0.7])
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -274,11 +274,14 @@ if __name__ == "__main__":
 
             current_state_parameters = [dist, ori, angle]
 
+            # Get reward matrix for use in genieation
+            Genie_reward = Env.reward_matrix[path_idx,n+data_idx]
+
             # Calculate the action
             if ADJ:
                 State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
                 beam_nr, adj_action_index = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr,
-                                                               Nlt)  # TODO måske ændre sidste output til "limiting factors"
+                                                               Nlt, Genie_reward)  # TODO måske ændre sidste output til "limiting factors"
                 action_index = adj_action_index
             else:
                 State.state = State.build_state(previous_beam_nr, current_state_parameters)
@@ -340,7 +343,8 @@ if __name__ == "__main__":
         'beam_log_r': beam_log_r,
         'beam_log_t': beam_log_t
     }
-    
+
+    Agent.Q = len(Agent.Q)
     data_agent = {
     'Agent': Agent,
     'agent_settings': agent_settings,
@@ -349,20 +353,20 @@ if __name__ == "__main__":
 
     try:
         if "NLOS" in channel_settings["scenarios"][0]:
-            helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
             helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
         else:
-            helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
             helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
     except OSError as e:
         print(e)
         print("Saving to root folder instead")
         if "NLOS" in channel_settings["scenarios"][0]:
-            helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
             helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
         else:
-            helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
             helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
             
     
             
