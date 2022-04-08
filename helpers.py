@@ -11,12 +11,121 @@ import sys
 import dill as pickle
 import numpy as np
 import scipy.io as scio
+from numba import njit
+import h5py
 
 import classes
 import plots
+import json
 
 
 # %% Functions
+def create_agent_setting(method, Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, chunksize, episodes, Pretty_parameter=None):
+    """
+    Saves an agent settings file, containing the specified settings from inputs
+
+    Parameters
+    ----------
+    Nb_r : Int
+        Number of previous actions for receiver.
+    Nb_t : Int
+        Number of previous actions for transmitter.
+    Ori_his : Int
+        Number of previous orientations.
+    Ori_res : Int
+        Resolution of the orientation(s).
+    Dist_res : Int
+        Resolution of the distance.
+    Ang_res : Int
+        Resolution of the angle.
+    Pretty_parameter : String or Int, optional
+        If unspecified the written file will not contain newlines and will be nigh unreadable. The default is None.
+
+    Returns
+    -------
+    None.
+
+    """
+    method = method.upper()
+    
+    if Nb_r or Nb_t:
+        Beam_s = "T"
+    else:
+        Beam_s = "F"
+    
+    if Ori_res == 0:
+        Ori = False
+        Ori_s = "F"
+    else:
+        Ori = True
+        Ori_s = "T"
+
+    if Dist_res == 0:
+        Dist = False
+        Dist_s = "F"
+    elif Dist_res != 0 and Ang_res == 0:
+        Dist = True
+        Dist_s = "T"
+    elif Dist_res != 0 and Ang_res != 0:
+        Dist = False
+        Dist_s = "F"
+
+    if Ang_res == 0:
+        Ang = False
+        Ang_s = "F"
+    else:
+        Ang = True
+        Ang_s = "T"
+
+    result_name = method + '_' + Beam_s + Ori_s + Dist_s + Ang_s + "_" + str(Nb_r) + "-" + str(Nb_t) + "-" + str(
+        Ori_his) + "-" + str(Ori_res) + "-" + str(Dist_res) + "-" + str(Ang_res) + "_" + str(chunksize) + "_" + str(episodes)
+
+    data = {
+        "RESULT_NAME": result_name,
+        "METHOD": method,
+        "ADJ": True,
+        "ORI": Ori,
+        "DIST": Dist,
+        "LOCATION": Ang,
+        "n_actions_r": Nb_r,
+        "n_actions_t": Nb_t,
+        "n_ori": Ori_his,
+        "ori_res": Ori_res,
+        "dist_res": Dist_res,
+        "angle_res": Ang_res,
+        "chunksize": chunksize,
+        "Episodes": episodes,
+        "receiver": {
+            "antennea": 8,
+            "layers": 3
+        },
+        "transmitter": {
+            "antennea": 32,
+            "layers": 4
+        }
+    }
+
+    with open("./Settings/" + result_name + ".json", 'w') as outfile:
+        json.dump(data, outfile, indent=Pretty_parameter)
+
+def bulk_loader(path_to_dir):
+    try:
+        os.remove('plot_data.hdf5')
+    except Exception as e:
+        print(e)
+    myfile = h5py.File('plot_data.hdf5','a')
+    folder = os.fsencode(path_to_dir)
+    
+    for idx, file in enumerate(os.listdir(folder)):
+        filename = os.fsdecode(file)
+        try:
+            del myfile[f'{idx}']
+            myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
+        except KeyError:
+            myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
+    
+    return myfile
+
 def dump_pickle(data, path, filename):
     """
     Saves a file, containing training results
@@ -38,6 +147,17 @@ def dump_pickle(data, path, filename):
     with open(path + filename, 'wb+') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+        
+def dump_hdf5(data, path, filename):
+    
+    with h5py.File(path+filename, "a") as f:
+        for key, value in data.items():
+            try:
+                del f[f'{key}']
+                f.create_dataset(f'/{key}', data = value)
+            except KeyError:
+                f.create_dataset(f'/{key}', data = value)
+        f.close()
 
 
 def load_pickle(path_to_pickle, filename):
@@ -59,8 +179,9 @@ def load_pickle(path_to_pickle, filename):
     """
     with open(path_to_pickle + filename, 'rb') as f:
         data = pickle.load(f)
+        
 
-    return data
+    return data       
 
 
 def state_to_index(state):
@@ -79,7 +200,8 @@ def state_to_index(state):
 
     """
     return tuple([tuple(state[0]), tuple(state[1]),
-                  tuple(state[2]), tuple(state[3])])
+                  tuple(state[2]), tuple(state[3]),
+                  tuple(state[4])])
 
 
 def steering_vectors2d(direction, theta, N, lambda_):
@@ -98,7 +220,7 @@ def steering_vectors2d(direction, theta, N, lambda_):
     r[0, :] = np.linspace(0, (N - 1) * lambda_ / 2, N)
 
     if isinstance(theta, np.ndarray):
-        e = direction * np.matrix([np.cos(theta), np.sin(theta)])
+        e = direction * np.matrix([np.cos(theta), np.sin(theta)]) # np.matrix laver måske problemer i forhold til numba @jit
         result = np.exp(-2j * (np.pi / lambda_) * e.T @ r)
     elif isinstance(theta, float):
         e = direction * np.array([[np.cos(theta), np.sin(theta)]])
@@ -106,7 +228,7 @@ def steering_vectors2d(direction, theta, N, lambda_):
     else:
         raise Exception("Theta is not an array or an ")
 
-    return result
+    return np.array(result, np.cdouble)
 
 
 def codebook(N, k, lambda_):
@@ -119,14 +241,14 @@ def codebook(N, k, lambda_):
     :return: Codebook matrix
     """
 
-    codeword = np.zeros(N, dtype=np.complex64)
+    codeword = np.zeros(N, dtype=np.cdouble)
 
     if np.ceil(np.log2(N)) != np.floor(np.log2(N)):
         raise Exception("N not a power of 2")
 
     N_codeword = 2 ** (k + 1) - 2
 
-    codebook = np.zeros((N_codeword, N), dtype=np.complex64)
+    codebook = np.zeros((N_codeword, N), dtype=np.cdouble)
 
     for i in range(1, k + 1):
         l = np.log2(N) - i
@@ -153,7 +275,7 @@ def codebook(N, k, lambda_):
         for n in range(2, 2 ** i + 1):
             codebook[(2 ** i) - 3 + n, :] = codeword * (
                     np.sqrt(N) * steering_vectors2d(1, np.arccos((((2 * (n - 1) / (2 ** i)) + 1) % 2) - 1), N,
-                                                    lambda_))
+                                                    lambda_)) # TODO kig på denne funktion skal sqrt være 1/ ?
 
     for idx, row in enumerate(codebook):
         codebook[idx, :] = row * 1 / np.linalg.norm(row)
@@ -341,7 +463,7 @@ def noisy_ori(ori_vector):
         # generate the additive orientation noise as MA filtered random walk
         a = np.zeros(len(z_axis))
         for i in range(len(z_axis)):
-            a[i] = np.sum(a_bar[i:i + K]) / K
+            a[i] = np.sum(a_bar[i - K:i]) / K
 
         # Add the noise to original data and wrap angles to range [-pi:pi] for correct signs
         res_z_axis = z_axis + a
@@ -526,3 +648,22 @@ def quadriga_simulation(ENGINE, pos_log_name, data_name, para, multi_user):
         raise Exception("ENGINE name is incorrect")
 
     return simulation_data
+
+
+@njit()
+def get_H(Nr, Nt, Beta, alpha_rx, alpha_tx):
+    # Calculate channel matrix H
+    H = np.zeros((Nr, Nt), dtype=np.cdouble)
+    # H = np.zeros((Nr, Nt))
+    for i in range(len(Beta)):
+        H += Beta[i] * np.dot(alpha_rx[i].T, np.conjugate(alpha_tx[i]))
+    H = H * np.sqrt(Nr * Nt)
+    return H
+
+@njit()
+def jit_reward(W, F, H, P_t):
+    R = np.zeros((len(F[:, 0]), len(W[:, 0])))
+    for p in range(len(F[:, 0])):
+        for q in range(len(W[:, 0])):
+            R[p, q] = np.absolute((np.dot(np.dot(np.conjugate(W[q, :]).T, H), F[p, :]) * np.sqrt(P_t))) ** 2
+    return R

@@ -19,8 +19,8 @@ if len(cmd_input) > 1:
     CHANNEL_SETTINGS = sys.argv[1]
     AGENT_SETTINGS = sys.argv[2]
 else:
-    CHANNEL_SETTINGS = "car_urban_LOS_16_users_10000_steps"
-    AGENT_SETTINGS = "sarsa_TFFF_2-3-8-6-8_5000_5"
+    CHANNEL_SETTINGS = "car_urban_LOS_32_users_10000_steps"
+    AGENT_SETTINGS = "SARSA_TFFF_2-2-0-0-0-0_5000_1000"
 
 # %% main
 if __name__ == "__main__":
@@ -52,7 +52,8 @@ if __name__ == "__main__":
     ORI = agent_settings["ORI"]  # Include the User Terminal orientation in the state
     DIST = agent_settings["DIST"]  # Include the distance between User Terminal and Base Station in the state
     LOCATION = agent_settings["LOCATION"]  # Include location of User Terminal in polar coordinates in the state
-    n_actions = agent_settings["n_actions"]  # Number of previous actions
+    n_actions_r = agent_settings["n_actions_r"]  # Number of previous actions
+    n_actions_t = agent_settings["n_actions_t"]  # Number of previous actions
     n_ori = agent_settings["n_ori"]  # Number of previous orientations
     ori_res = agent_settings["ori_res"]  # Resolution of the orientation
     dist_res = agent_settings["dist_res"]  # Resolution of the distance
@@ -63,17 +64,14 @@ if __name__ == "__main__":
     Nr = agent_settings["receiver"]["antennea"]  # Receiver
     Nlt = agent_settings["transmitter"]["layers"]  # Transmitter
     Nlr = agent_settings["receiver"]["layers"]  # Receiver
-    Nbeam_tot = (2 ** (Nlr + 1)) - 2  # Total number of beams for the receiver
-
-    # TODO virker useless
-    # Load Scenario configuration
-    with open(f'Cases/{CASE}.json', 'r') as fp:
-        case = json.load(fp)
+    Nbeam_tot_r = (2 ** (Nlr + 1)) - 2  # Total number of beams for the receiver
+    Nbeam_tot_t = (2 ** (Nlt + 1)) - 2  # Total number of beams for the transmitter
 
     # ----------- Load the data -----------
     t_start = time()
     # Load the data
-    channel_par, pos_log = helpers.load_data(f"data_pos_{FILENAME}.mat", f"data_{FILENAME}")
+    channel_par, pos_log = helpers.load_data(f"data_pos_{FILENAME}.mat",
+                                             f"data_{FILENAME}")
     print(f"Took: {time() - t_start}", flush=True)
 
     # Re-affirm that "M" matches data
@@ -121,7 +119,8 @@ if __name__ == "__main__":
                               fc, P_t)
 
     # Initialize all possible actions for the Agent
-    action_space = np.arange(Nbeam_tot)
+    action_space_r = np.arange(Nbeam_tot_r)
+    action_space_t = np.arange(Nbeam_tot_t)
 
     """
     Based on the settings for the simulation, different components used in the State 
@@ -155,14 +154,24 @@ if __name__ == "__main__":
     # ----------- Starts the simulation -----------
 
     # Initializing arrays for logs.
-    action_log = np.zeros([Episodes, chunksize])
-    beam_log = np.zeros([Episodes, chunksize])
+    action_log_r = np.zeros([Episodes, chunksize])
+    action_log_t = np.zeros([Episodes, chunksize])
+    beam_log_r = np.zeros([Episodes, chunksize])
+    beam_log_t = np.zeros([Episodes, chunksize])
     R_log = np.zeros([Episodes, chunksize])
     R_max_log = np.zeros([Episodes, chunksize])
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent = classes.Agent(action_space, eps=0.05, alpha=["constant", 0.7])
+    Agent = classes.Agent(action_space_r, action_space_t, eps=0.05, alpha=["constant", 0.05])
+
+    print('Rewards are now calculated')
+    reward_start = time()
+
+    Env.update_data(AoA_Local, AoD_Global, coeff)
+    Env.create_reward_matrix()
+
+    print(f'Rewards tog {time() - reward_start} sekunder at regne')
 
     for episode in tqdm(range(Episodes), desc="Episodes"):
         """
@@ -178,21 +187,21 @@ if __name__ == "__main__":
         The Environment is then updated with the relevant AoA, AoD and channel parameter data.  
         We then go through each position in the track, takes an action, gets a reward and updates the Q-table.
         """
-        # Create the Agent
-        # Agent = classes.Agent(action_space, eps=0.1, alpha=["constant", 0.7])
-
         # Choose data
         path_idx = np.random.randint(0, M)
         data_idx = np.random.randint(0, N - chunksize) if (N - chunksize) else 0
 
-        # Update the environment data
-        Env.update_data(AoA_Local[path_idx][data_idx:data_idx + chunksize],
-                        AoD_Global[path_idx][0][data_idx:data_idx + chunksize],
-                        coeff[path_idx][0][data_idx:data_idx + chunksize])
-
-        # Initiate the State at a random beam sequence
         # TODO dette skal ikke blot være beams men én beam og et antal tidligere "retninger"
-        State_tmp = [list(np.random.randint(0, Nbeam_tot, n_actions))]
+
+        if n_actions_r > 0:
+            State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r))]
+        else:
+            State_tmp = [list("N/A")]
+
+        if n_actions_t > 0:
+            State_tmp.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t)))
+        else:
+            State_tmp.append(["N/A"])
 
         if DIST or LOCATION:
             State_tmp.append(list([dist_discrete[0][0]]))
@@ -209,13 +218,23 @@ if __name__ == "__main__":
         else:
             State_tmp.append(["N/A"])
 
-        State = classes.State(State_tmp, ORI, DIST, LOCATION)
+        State = classes.State(State_tmp, ORI, DIST, LOCATION, n_actions_r, n_actions_t)
 
         # Initiate the action
-        beam_nr = np.random.choice(action_space) # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
-        retning = np.random.randint(0, 3) - 1   # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
+        beam_nr = tuple((np.random.choice(action_space_r), np.random.choice(
+            action_space_t)))  # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
+        adj_action_index = tuple((np.random.randint(0, 6), np.random.randint(0,
+                                                                             6)))  # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
 
         # TODO første action skal afhænge af initial state
+
+        previous_state = State.state
+        previous_beam_nr = beam_nr
+
+        if ADJ:
+            previous_action = adj_action_index
+        else:
+            previous_action = beam_nr
 
         end = False
         # Run the episode
@@ -254,79 +273,98 @@ if __name__ == "__main__":
                 end = True
 
             current_state_parameters = [dist, ori, angle]
-            next_state_parameters = [next_dist, next_ori, next_angle]
 
             # Calculate the action
             if ADJ:
-                State.state = State.build_state(beam_nr, current_state_parameters, retning)
-                beam_nr, retning = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr) # TODO måske ændre sidste output til "limiting factors"
-                action_index = retning
+                State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
+                beam_nr, adj_action_index = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr,
+                                                               Nlt)  # TODO måske ændre sidste output til "limiting factors"
+                action_index = adj_action_index
             else:
-                State.state = State.build_state(beam_nr, current_state_parameters)
+                State.state = State.build_state(previous_beam_nr, current_state_parameters)
                 beam_nr = Agent.e_greedy(helpers.state_to_index(State.state))
                 action_index = beam_nr
 
             # Get reward from performing action
-            R, R_max, R_min, R_mean = Env.take_action(n, beam_nr)
 
+            R, R_max, R_min, R_mean = Env.take_action(path_idx, n+data_idx, beam_nr)
 
             # Update Q-table
-            if METHOD == "simple":
+            if METHOD == "SIMPLE":
                 Agent.update_simple(helpers.state_to_index(State.state), action_index, R)
 
             elif METHOD == "SARSA":
-                if ADJ: # Note that next_action here is a direction index and not a beam number
-                    next_state = State.build_state(beam_nr, next_state_parameters, retning)
-                    next_beam, next_action = Agent.e_greedy_adj(helpers.state_to_index(next_state), beam_nr, Nlr)
-                else: # Note that next_action is a beam number and not a direction index
-                    next_state = State.build_state(beam_nr, next_state_parameters)
-                    next_action = Agent.e_greedy(helpers.state_to_index(next_state))
-
-                Agent.update_TD(State, action_index, R, next_state, next_action, end=end)
+                Agent.update_TD(helpers.state_to_index(previous_state),
+                                previous_action,
+                                R,
+                                helpers.state_to_index(State.state),
+                                action_index,
+                                end=end)
 
             elif METHOD == "Q-LEARNING":
-                if ADJ: # Note that next_action here is a direction index and not a beam number
-                    next_state = State.build_state(beam_nr, next_state_parameters, retning)
-                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(next_state), beam_nr, Nlr)
-                else: # Note that next_action is a beam number and not a direction index
-                    next_state = State.build_state(beam_nr, next_state_parameters)
-                    next_action = Agent.greedy(helpers.state_to_index(next_state))
+                if ADJ:  # Note that next_action here is a direction index and not a beam number
+                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt)
+                else:  # Note that next_action is a beam number and not a direction index
+                    next_action = Agent.greedy(helpers.state_to_index(State.state))
 
-                Agent.update_TD(State, action_index, R, next_state, next_action, end=end)
+                Agent.update_TD(helpers.state_to_index(previous_state),
+                                previous_action,
+                                R,
+                                helpers.state_to_index(State.state),
+                                next_action,
+                                end=end)
             else:
                 raise Exception("Method not recognized")
 
-            action_log[episode, n] = action_index
-            beam_log[episode, n] = beam_nr
+            action_log_r[episode, n] = action_index[0]
+            action_log_t[episode, n] = action_index[1]
+            beam_log_r[episode, n] = beam_nr[0]
+            beam_log_t[episode, n] = beam_nr[1]
             R_log[episode, n] = R
             R_max_log[episode, n] = R_max
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
 
-    # %% Save pickle
-    data = {
-        'Agent': Agent,
+            previous_state = State.state
+            previous_beam_nr = beam_nr
+            previous_action = action_index
+
+    # %% Save pickle and hdf5
+    data_reward = {
         'R_log': R_log,
         'R_max': R_max_log,
         'R_min': R_min_log,
         'R_mean': R_mean_log,
-        'agent_settings': agent_settings,
-        'channel_settings': channel_settings,
-        'action_log': action_log,
-        'beam_log': beam_log,
+        'action_log_r': action_log_r,
+        'action_log_t': action_log_t,
+        'beam_log_r': beam_log_r,
+        'beam_log_t': beam_log_t
+    }
+    
+    data_agent = {
+    'Agent': Agent,
+    'agent_settings': agent_settings,
+    'channel_settings': channel_settings,
     }
 
     try:
         if "NLOS" in channel_settings["scenarios"][0]:
-            helpers.dump_pickle(data, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
         else:
-            helpers.dump_pickle(data, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
     except OSError as e:
         print(e)
         print("Saving to root folder instead")
         if "NLOS" in channel_settings["scenarios"][0]:
-            helpers.dump_pickle(data, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
         else:
-            helpers.dump_pickle(data, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-
-
+            helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
+            
+    
+            
+            
+            
