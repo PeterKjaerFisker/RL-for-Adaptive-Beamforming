@@ -116,14 +116,18 @@ def bulk_loader(path_to_dir):
     myfile = h5py.File('plot_data.hdf5','a')
     folder = os.fsencode(path_to_dir)
     
-    for idx, file in enumerate(os.listdir(folder)):
+    for idx, file in enumerate(sorted(os.listdir(folder))):
         filename = os.fsdecode(file)
         try:
             del myfile[f'{idx}']
-            myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
         except KeyError:
+            pass
+
+        if filename.endswith(".hdf5"):
             myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
-    
+        else:
+            pass
+
     return myfile
 
 def dump_pickle(data, path, filename):

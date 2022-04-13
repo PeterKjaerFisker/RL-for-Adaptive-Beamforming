@@ -14,7 +14,7 @@ cmd_input = sys.argv
 if len(cmd_input) > 1:
     DATA_NAME = sys.argv[1]
 else:
-    DATA_NAME = "car_urban_LOS_sarsa_TFFF_2-2-0-0-0-0_5000_300"
+    DATA_NAME = "pedestrian_LOS_SARSA_TTFF_2-2-4-8-0-0_7000_10000"
 
 # %% Load results
 data_reward = h5py.File(f'Results/{DATA_NAME}_results.hdf5', 'r+')
@@ -49,9 +49,9 @@ plots.Relative_reward(Save,
 plots.stability(Save, R_log_db, 50)
 
 # Code for plotting specific episode
-# start = 102
-# stop = 103
-
+# start = 4840
+# stop = 4841
+#
 # plots.mean_reward(Save, R_max_log_db[start:stop], R_mean_log_db[start:stop], R_min_log_db[start:stop], R_log_db[start:stop],
 #                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
 #                   db=True)

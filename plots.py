@@ -25,7 +25,7 @@ def barplot(save, data_arrays, span):
     '''
     N = len(data_arrays)
     M = len(data_arrays[0])
-    width = 0.25
+    width = 1/(1+N)
     ind = np.arange(M)
     
     for dataset in range(N):
