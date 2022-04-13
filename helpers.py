@@ -13,6 +13,7 @@ import numpy as np
 import scipy.io as scio
 from numba import njit
 import h5py
+import natsort as nt
 
 import classes
 import plots
@@ -116,15 +117,20 @@ def bulk_loader(path_to_dir):
     myfile = h5py.File('plot_data.hdf5','a')
     folder = os.fsencode(path_to_dir)
     
-    for idx, file in enumerate(sorted(os.listdir(folder))):
-        filename = os.fsdecode(file)
+    # tmp1 = os.listdir(folder)
+    # tmp2 = nt.natsorted(os.listdir(folder))
+    sorted_dir = nt.natsorted([os.fsdecode(element) for element in os.listdir(folder)])
+    # tmp4 = nt.natsorted(tmp3)
+    
+    for idx, filename in enumerate(sorted_dir):
+
         try:
-            del myfile[f'{idx}']
+            del myfile[f'{filename.strip("_results.hdf5")}']
         except KeyError:
             pass
 
         if filename.endswith(".hdf5"):
-            myfile[f'{idx}'] = h5py.ExternalLink(path_to_dir+filename, '/')
+            myfile[f'{filename.strip("_results.hdf5")}'] = h5py.ExternalLink(path_to_dir+filename, '/')
         else:
             pass
 

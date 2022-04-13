@@ -33,10 +33,10 @@ def barplot(save, data_arrays, span):
         bar = plt.bar(ind+width*dataset, xvals, width)
     
     
-    plt.xticks(ind+width,span)
-    plt.title("Performance")
-    plt.xlabel("Range")
-    plt.ylabel("Average reward per episode")
+    plt.xticks(ind+width,span, rotation = 30)
+    plt.title("Average misalignment for different action histories")
+    plt.xlabel("Episode range [-,-]")
+    plt.ylabel("Average absolute misalignment [dB]")
     
     if save == True:
         plt.savefig("Figures/Barplot.pdf")

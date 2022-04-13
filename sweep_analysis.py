@@ -8,6 +8,7 @@ Created on Tue Apr  5 15:36:31 2022
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
+import natsort as nt
 
 import helpers
 import plots
@@ -16,20 +17,26 @@ import h5py
 # %% Load results
 # pickle_data = helpers.load_pickle('Results/','before_preprocessing_car_urban_LOS_sarsa_TTFF_2-2-2-4-0-0_5000_300_results.pickle')
 # bulk_data = helpers.bulk_loader('Results/Centralized_Agent_Sweeps/HDF5/Decimated/')
-bulk_data = helpers.bulk_loader('Results/Centralized_Agent_Sweeps/')
+bulk_data = helpers.bulk_loader('Results/Sweep_loc2/')
 
 # %% Data analysis
 
 # span = [(0,100),(100,200),(200,300),(300,400),(400,500),(500,600),(600,700),(700,800),(800,900),(900,1000)]
-span = [(0, 1000),(1000, 2000),(2000, 3000),(3000, 4000),(4000, 5000),(5000, 6000),(6000, 7000),(7000, 8000), (8000, 9000),(9000, 10000)]
+# span = [(0, 1000),(1000, 2000),(2000, 3000),(3000, 4000),(4000, 5000),(5000, 6000),(6000, 7000),(7000, 8000), (8000, 9000),(9000, 10000)]
 # span = [(0, 250),(250, 500),(500, 750),(750, 1000),(1000, 1250),(1250, 1500),(1500, 1750),(1750, 2000), (2000, 2250),(2250, 2500)]
+# span = [(0,50),(50,100),(100,150),(150,200),(200,250),(250,300)]
+# span = [(0,1000),(4500,5500),(9000,10000)]
+# span = [(0,1000),(2250,3250),(4500,5500),(6750,7750),(9000,10000)]
+span = [(00,1000),(1000,2000),(2000,3000),(3000,4000),(4000,5000),(5000,6000),(6000,7000),(7000,8000),(8000,9000),(9000,10000)]
+# span = [(x*100,(x+1)*100) for x in range(100)]
 
 dim1 = len(bulk_data)
 dim2 = len(span)
 
 plot_array = np.zeros((dim1, dim2))
 
-for test_idx, test in enumerate(bulk_data.keys()):
+plt.figure()
+for test_idx, test in enumerate(nt.natsorted(bulk_data.keys())):
     # averaged_episodes = np.average(bulk_data[f'{test}/R_log'], axis = 1)
     R_log_db = 10 * np.log10(bulk_data[f'{test}/R_log'])
     R_max_log_db = 10 * np.log10(bulk_data[f'{test}/R_max'])
@@ -46,9 +53,14 @@ for test_idx, test in enumerate(bulk_data.keys()):
 
     for idx, (start, stop) in enumerate(span):
         plot_array[test_idx, idx] = np.average(averaged_episodes[start:stop])
+        
+    plt.plot(plot_array[test_idx,:], label=test, marker = 'x')
 
+plt.legend(bbox_to_anchor = (0,-0.1), loc = "upper left")
 # plots.barplot(False, plot_array, span)
-plt.plot(plot_array.T, marker='x')
+# plt.plot(plot_array.T, marker='x')
+# plt.legend(['4','8','16','32'])
+plt.title('Location 2')
 plt.show()
 
 bulk_data.close()
