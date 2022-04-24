@@ -213,6 +213,25 @@ def state_to_index(state):
                   tuple(state[2]), tuple(state[3]),
                   tuple(state[4])])
 
+def state_to_index_reward(state):
+    """
+    Turn a state, from the State class, into a tuple for indexing the Q-table
+
+    Parameters
+    ----------
+    state : Array
+        The state to be turned into a tuple
+
+    Returns
+    -------
+    Tuple
+        A tuple containing the state
+
+    """
+    return tuple([tuple(state[0]), tuple(state[1]),
+                  tuple(state[2]), tuple(state[3]),
+                  tuple(state[4]), tuple(state[5])])
+
 
 def steering_vectors2d(direction, theta, N, lambda_):
     """

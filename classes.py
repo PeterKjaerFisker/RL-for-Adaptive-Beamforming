@@ -5,6 +5,7 @@
 """
 # %% Imports
 from collections import defaultdict
+
 import numpy as np
 from tqdm import tqdm
 
@@ -448,9 +449,8 @@ class Environment():
                     alpha_rx,
                     alpha_tx)
 
-
                 R[path_idx, stepnr] = helpers.jit_reward(self.W, self.F, H, self.P_t)
-                
+
         self.reward_matrix = R
 
     def take_action(self, path_idx, stepnr, beam_nr):
@@ -534,6 +534,85 @@ class State:
         self.location_flag = location_flag
         self.r_hist_flag = r_hist_flag
         self.t_hist_flag = t_hist_flag
+
+    def build_state_reward(self, beam_nr, para=[None, None, None], retning=None, reward=0):
+        """
+        Builds a state object, in accordance with what is included in the state
+
+        Parameters
+        ----------
+        action : Int
+            The action for inclusion in the state.
+        para : Arra, optional
+            Distance, orientaion and angle for possible inclusion in the state. The default is [None, None, None].
+        retning : Int, optional
+            Retning of the chosen action for possible inclusion in the state. The default is None.
+
+        Returns
+        -------
+        list
+            A state
+
+        """
+        dist, ori, angle = para
+        beam_r = beam_nr[0]
+        beam_t = beam_nr[1]
+        retning_r = retning[0]
+        retning_t = retning[1]
+
+        if self.r_hist_flag:
+            if len(self.state[0]) > 1:
+                if retning is not None:
+                    state_r = self.state[0][1:-1]
+                    state_r.append(retning_r)
+                else:
+                    state_r = self.state[0][1:]
+                state_r.append(beam_r)
+            else:
+                state_r = self.state[0]
+                state_r.pop()
+                state_r.append(beam_r)
+        else:
+            state_r = ["N/A"]
+
+        if self.t_hist_flag:
+            if len(self.state[1]) > 1:
+                if retning is not None:
+                    state_t = self.state[1][1:-1]
+                    state_t.append(retning_t)
+                else:
+                    state_t = self.state[1][1:]
+                state_t.append(beam_t)
+            else:
+                state_t = self.state[1]
+                state_t.pop()
+                state_t.append(beam_t)
+        else:
+            state_t = ["N/A"]
+
+        if self.distance_flag or self.location_flag:
+            state_d = [dist]
+        else:
+            state_d = ["N/A"]
+
+        if self.orientation_flag:
+            state_o = self.state[3][1:]
+            state_o.append(ori)
+        else:
+            state_o = ["N/A"]
+
+        if self.location_flag:
+            state_deg = [angle]
+        else:
+            state_deg = ["N/A"]
+
+        if reward < 0.0001:
+            state_reward = ['low']
+        else:
+            state_reward = ['high']
+
+        return [state_r, state_t, state_d, state_o, state_deg, state_reward]
+
 
     def build_state(self, beam_nr, para=[None, None, None], retning=None):
         """
@@ -829,7 +908,6 @@ class Agent:
         next_action = tuple((actions_r[choice_r], actions_t[choice_t]))
         next_dir = tuple((dir_list_r[choice_r], dir_list_t[choice_t]))
         r_est = self.Q[state, next_dir][0]
-
 
         for idx_r, last_dir_r in enumerate(dir_list_r):
             for idx_t, last_dir_t in enumerate(dir_list_t):
