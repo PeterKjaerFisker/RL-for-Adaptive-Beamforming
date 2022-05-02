@@ -17,10 +17,12 @@ import helpers
 cmd_input = sys.argv
 if len(cmd_input) > 1:
     CHANNEL_SETTINGS = sys.argv[1]
-    AGENT_SETTINGS = sys.argv[2]
+    AGENT_SETTINGS_R = sys.argv[2]
+    AGENT_SETTINGS_T = sys.argv[3]
 else:
     CHANNEL_SETTINGS = "car_urban_LOS_16_users_10000_steps"
-    AGENT_SETTINGS = "SARSA_TFFF_2-2-0-0-0-0_5000_1000"
+    AGENT_SETTINGS_R = "sarsa_TFFT_2-2-0-0-32-32_7000_2000"
+    AGENT_SETTINGS_T = "sarsa_TFFT_2-2-0-0-32-32_7000_2000"
 
 # %% main
 if __name__ == "__main__":
@@ -30,11 +32,26 @@ if __name__ == "__main__":
         channel_settings = json.load(fs)
 
     # Load Agent Settings for simulation
-    with open(f'Settings/{AGENT_SETTINGS}.json', 'r') as fs:
-        agent_settings = json.load(fs)
+    with open(f'Settings/{AGENT_SETTINGS_R}.json', 'r') as fs:
+        agent_settings_r = json.load(fs)
+        
+    with open(f'Settings/{AGENT_SETTINGS_T}.json', 'r') as fs:
+        agent_settings_t = json.load(fs)
 
     # Load global parameters
-    RESULT_NAME = agent_settings["RESULT_NAME"]
+    if agent_settings_r['chunksize'] != agent_settings_t['chunksize']:
+        raise Exception('Chunksizes mismatch')
+    else:
+        chunksize = agent_settings_r['chunksize']
+        
+    if agent_settings_r['Episodes'] != agent_settings_t['Episodes']:
+        raise Exception('Episodes mismatch')
+    else:
+        Episodes = agent_settings_r['Episodes']
+
+    
+
+    RESULT_NAME = agent_settings_r["RESULT_NAME"].lstrip(f'_{chunksize}_{Episodes}') +'_'+agent_settings_t["RESULT_NAME"]
     FILENAME = channel_settings["FILENAME"]  # Name of the data file to be loaded or saved
     CASE = channel_settings["CASE"]  # "car_highway", "pedestrian" or "car"
 
@@ -47,23 +64,34 @@ if __name__ == "__main__":
     lambda_ = 3e8 / fc  # Wave length
 
     # ----------- Reinforcement Learning Parameters -----------
-    METHOD = agent_settings["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
-    ADJ = agent_settings["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
-    ORI = agent_settings["ORI"]  # Include the User Terminal orientation in the state
-    DIST = agent_settings["DIST"]  # Include the distance between User Terminal and Base Station in the state
-    LOCATION = agent_settings["LOCATION"]  # Include location of User Terminal in polar coordinates in the state
-    n_actions_r = agent_settings["n_actions_r"]  # Number of previous actions
-    n_actions_t = agent_settings["n_actions_t"]  # Number of previous actions
-    n_ori = agent_settings["n_ori"]  # Number of previous orientations
-    ori_res = agent_settings["ori_res"]  # Resolution of the orientation
-    dist_res = agent_settings["dist_res"]  # Resolution of the distance
-    angle_res = agent_settings["angle_res"]  # Resolution of the angle
-    chunksize = agent_settings["chunksize"]  # Number of samples taken out
-    Episodes = agent_settings["Episodes"]  # Episodes per chunk
-    Nt = agent_settings["transmitter"]["antennea"]  # Transmitter
-    Nr = agent_settings["receiver"]["antennea"]  # Receiver
-    Nlt = agent_settings["transmitter"]["layers"]  # Transmitter
-    Nlr = agent_settings["receiver"]["layers"]  # Receiver
+    METHOD_r = agent_settings_r["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
+    ADJ_r = agent_settings_r["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
+    ORI_r = agent_settings_r["ORI"]  # Include the User Terminal orientation in the state
+    DIST_r = agent_settings_r["DIST"]  # Include the distance between User Terminal and Base Station in the state
+    LOCATION_r = agent_settings_r["LOCATION"]  # Include location of User Terminal in polar coordinates in the state
+    n_actions_r_r = agent_settings_r["n_actions_r"]  # Number of previous actions
+    n_actions_t_r = agent_settings_r["n_actions_t"]  # Number of previous actions
+    n_ori_r = agent_settings_r["n_ori"]  # Number of previous orientations
+    ori_res_r = agent_settings_r["ori_res"]  # Resolution of the orientation
+    dist_res_r = agent_settings_r["dist_res"]  # Resolution of the distance
+    angle_res_r = agent_settings_r["angle_res"]  # Resolution of the angle
+    Nr = agent_settings_r["receiver"]["antennea"]  # Receiver
+    Nlr = agent_settings_r["receiver"]["layers"]  # Receiver
+    
+    METHOD_t = agent_settings_t["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
+    ADJ_t = agent_settings_t["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
+    ORI_t = agent_settings_t["ORI"]  # Include the User Terminal orientation in the state
+    DIST_t = agent_settings_t["DIST"]  # Include the distance between User Terminal and Base Station in the state
+    LOCATION_t = agent_settings_t["LOCATION"]  # Include location of User Terminal in polar coordinates in the state
+    n_actions_r_t = agent_settings_t["n_actions_r"]  # Number of previous actions
+    n_actions_t_t = agent_settings_t["n_actions_t"]  # Number of previous actions
+    n_ori_t = agent_settings_t["n_ori"]  # Number of previous orientations
+    ori_res_t = agent_settings_t["ori_res"]  # Resolution of the orientation
+    dist_res_t = agent_settings_t["dist_res"]  # Resolution of the distance
+    angle_res_t = agent_settings_t["angle_res"]  # Resolution of the angle
+    Nt = agent_settings_t["transmitter"]["antennea"]  # Transmitter
+    Nlt = agent_settings_t["transmitter"]["layers"]  # Transmitter
+
     Nbeam_tot_r = (2 ** (Nlr + 1)) - 2  # Total number of beams for the receiver
     Nbeam_tot_t = (2 ** (Nlt + 1)) - 2  # Total number of beams for the transmitter
 
@@ -132,26 +160,47 @@ if __name__ == "__main__":
       the distance between the UT and the BS is calculated from UT position data and discretized.
     - If the location of the UT is used, the angle to the UT in relation to the BS is calculated and discretized.  
     """
-    if ORI:
-        ori_discrete = np.zeros([M, N])
+    if ORI_r:
+        ori_discrete_r = np.zeros([M, N])
         for m in range(M):
-            ori_discrete[m, :] = helpers.discrete_ori(Orientation[m][0][2, :], ori_res)
+            ori_discrete_r[m, :] = helpers.discrete_ori(Orientation[m][0][2, :], ori_res_r)
     else:
-        ori_discrete = None
+        ori_discrete_r = None
+        
+    if ORI_t:
+        ori_discrete_t = np.zeros([M, N])
+        for m in range(M):
+            ori_discrete_t[m, :] = helpers.discrete_ori(Orientation[m][0][2, :], ori_res_t)
+    else:
+        ori_discrete_t = None
 
-    if DIST or LOCATION:
-        dist_discrete = np.zeros([M, N])
+    if DIST_r or LOCATION_r:
+        dist_discrete_r = np.zeros([M, N])
         for m in range(M):
-            dist_discrete[m, :] = helpers.discrete_dist(pos_log[m], dist_res, r_lim)
+            dist_discrete_r[m, :] = helpers.discrete_dist(pos_log[m], dist_res_r, r_lim)
     else:
-        dist_discrete = None
+        dist_discrete_r = None
+        
+    if DIST_t or LOCATION_t:
+        dist_discrete_t = np.zeros([M, N])
+        for m in range(M):
+            dist_discrete_t[m, :] = helpers.discrete_dist(pos_log[m], dist_res_t, r_lim)
+    else:
+        dist_discrete_t = None
 
-    if LOCATION:
-        angle_discrete = np.zeros([M, N])
+    if LOCATION_r:
+        angle_discrete_r = np.zeros([M, N])
         for m in range(M):
-            angle_discrete[m, :] = helpers.discrete_angle(pos_log[m], angle_res)
+            angle_discrete_r[m, :] = helpers.discrete_angle(pos_log[m], angle_res_r)
     else:
-        angle_discrete = None
+        angle_discrete_r = None
+        
+    if LOCATION_t:
+        angle_discrete_t = np.zeros([M, N])
+        for m in range(M):
+            angle_discrete_t[m, :] = helpers.discrete_angle(pos_log[m], angle_res_t)
+    else:
+        angle_discrete_t = None
 
     # ----------- Starts the simulation -----------
 
@@ -165,7 +214,8 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent = classes.Agent(action_space_r, action_space_t, eps=0.05, alpha=["constant", 0.05])
+    Agent_r = classes.Agent(action_space_r, eps=0.05, alpha=["constant", 0.05])
+    Agent_t = classes.Agent(action_space_t, eps=0.05, alpha=["constant", 0.05])
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -195,48 +245,83 @@ if __name__ == "__main__":
 
         # TODO dette skal ikke blot være beams men én beam og et antal tidligere "retninger"
 
-        if n_actions_r > 0:
-            State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r))]
+        if n_actions_r_r > 0:
+            State_tmp_r = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r_r))]
         else:
-            State_tmp = [list("N/A")]
+            State_tmp_r = [list("N/A")]
 
-        if n_actions_t > 0:
-            State_tmp.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t)))
+        if n_actions_t_r > 0:
+            State_tmp_r.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t_r)))
         else:
-            State_tmp.append(["N/A"])
+            State_tmp_r.append(["N/A"])
 
-        if DIST or LOCATION:
-            State_tmp.append(list([dist_discrete[0][0]]))
+        if DIST_r or LOCATION_r:
+            State_tmp_r.append(list([dist_discrete_r[0][0]]))
         else:
-            State_tmp.append(["N/A"])
+            State_tmp_r.append(["N/A"])
 
-        if ORI:
-            State_tmp.append(list(np.random.randint(0, ori_res, n_ori)))
+        if ORI_r:
+            State_tmp_r.append(list(np.random.randint(0, ori_res_r, n_ori_r)))
         else:
-            State_tmp.append(["N/A"])
+            State_tmp_r.append(["N/A"])
 
-        if LOCATION:
-            State_tmp.append(list([angle_discrete[0][0]]))
+        if LOCATION_r:
+            State_tmp_r.append(list([angle_discrete_r[0][0]]))
         else:
-            State_tmp.append(["N/A"])
+            State_tmp_r.append(["N/A"])
+            
+        if n_actions_r_t > 0:
+            State_tmp_t = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r_t))]
+        else:
+            State_tmp_t = [list("N/A")]
 
-        State = classes.State(State_tmp, ORI, DIST, LOCATION, n_actions_r, n_actions_t)
+        if n_actions_t_t > 0:
+            State_tmp_t.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t_t)))
+        else:
+            State_tmp_t.append(["N/A"])
+
+        if DIST_t or LOCATION_t:
+            State_tmp_t.append(list([dist_discrete_t[0][0]]))
+        else:
+            State_tmp_t.append(["N/A"])
+
+        if ORI_t:
+            State_tmp_t.append(list(np.random.randint(0, ori_res_t, n_ori_t)))
+        else:
+            State_tmp_t.append(["N/A"])
+
+        if LOCATION_t:
+            State_tmp_t.append(list([angle_discrete_t[0][0]]))
+        else:
+            State_tmp_t.append(["N/A"])
+
+        # TODO ===|||=== Hvis state skal være forskellig skal der ændres ting her ===|||===
+        State_r = classes.State(State_tmp_r, ORI_r, DIST_r, LOCATION_r, n_actions_r_r, n_actions_t_r)
+        State_t = classes.State(State_tmp_t, ORI_t, DIST_t, LOCATION_t, n_actions_r_t, n_actions_t_t)
+        # TODO ===|||=== Hvis state skal være forskellig skal der ændres ting her ===|||===
 
         # Initiate the action
-        beam_nr = tuple((np.random.choice(action_space_r), np.random.choice(
-            action_space_t)))  # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
-        adj_action_index = tuple((np.random.randint(0, 6), np.random.randint(0,
-                                                                             6)))  # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
+        beam_nr_r = tuple([np.random.choice(action_space_r)])  # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
+        beam_nr_t = tuple([np.random.choice(action_space_t)])
+        adj_action_index_r = tuple([np.random.randint(0, 6)])  # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
+        adj_action_index_t = tuple([np.random.randint(0, 6)])
 
         # TODO første action skal afhænge af initial state
 
-        previous_state = State.state
-        previous_beam_nr = beam_nr
+        previous_state_r = State_r.state
+        previous_state_t = State_t.state
+        previous_beam_nr_r = beam_nr_r
+        previous_beam_nr_t = beam_nr_t
 
-        if ADJ:
-            previous_action = adj_action_index
+        if ADJ_r:
+            previous_action_r = adj_action_index_r
         else:
-            previous_action = beam_nr
+            previous_action_r = beam_nr_r
+            
+        if ADJ_t:
+            previous_action_t = adj_action_index_t
+        else:
+            previous_action_t = beam_nr_t
 
         end = False
         # Run the episode
@@ -244,92 +329,163 @@ if __name__ == "__main__":
 
             # Update the current state
             # Check if the user terminal orientation is part of the state.
-            if ORI:
+            if ORI_r:
                 # Get the current discrete orientation of the user terminal
-                ori = int(ori_discrete[path_idx, data_idx + n])
+                ori_r = int(ori_discrete_r[path_idx, data_idx + n])
                 # Check if current step is the last step in episode.
                 # If not the last step, the next orientation of the user terminal is assigned to a variable
                 if n < chunksize - 1:
-                    next_ori = int(ori_discrete[path_idx, data_idx + n + 1])
+                    next_ori_r = int(ori_discrete_r[path_idx, data_idx + n + 1])
             else:
-                ori = "N/A"
-                next_ori = "N/A"
+                ori_r = "N/A"
+                next_ori_r = "N/A"
 
-            if DIST or LOCATION:
-                dist = dist_discrete[path_idx, data_idx + n]
+            if DIST_r or LOCATION_r:
+                dist_r = dist_discrete_r[path_idx, data_idx + n]
                 if n < chunksize - 1:
-                    next_dist = dist_discrete[path_idx, data_idx + n + 1]
+                    next_dist_r = dist_discrete_r[path_idx, data_idx + n + 1]
             else:
-                dist = "N/A"
-                next_dist = "N/A"
+                dist_r = "N/A"
+                next_dist_r = "N/A"
 
-            if LOCATION:
-                angle = angle_discrete[path_idx, data_idx + n]
+            if LOCATION_r:
+                angle_r = angle_discrete_r[path_idx, data_idx + n]
                 if n < chunksize - 1:
-                    next_angle = angle_discrete[path_idx, data_idx + n + 1]
+                    next_angle_r = angle_discrete_r[path_idx, data_idx + n + 1]
             else:
-                angle = "N/A"
-                next_angle = "N/A"
+                angle_r = "N/A"
+                next_angle_r = "N/A"
+                
+            if ORI_t:
+                # Get the current discrete orientation of the user terminal
+                ori_t = int(ori_discrete_t[path_idx, data_idx + n])
+                # Check if current step is the last step in episode.
+                # If not the last step, the next orientation of the user terminal is assigned to a variable
+                if n < chunksize - 1:
+                    next_ori_t = int(ori_discrete_t[path_idx, data_idx + n + 1])
+            else:
+                ori_t = "N/A"
+                next_ori_t = "N/A"
+
+            if DIST_t or LOCATION_t:
+                dist_t = dist_discrete_t[path_idx, data_idx + n]
+                if n < chunksize - 1:
+                    next_dist_t = dist_discrete_t[path_idx, data_idx + n + 1]
+            else:
+                dist_t = "N/A"
+                next_dist_t = "N/A"
+
+            if LOCATION_t:
+                angle_t = angle_discrete_t[path_idx, data_idx + n]
+                if n < chunksize - 1:
+                    next_angle_t = angle_discrete_t[path_idx, data_idx + n + 1]
+            else:
+                angle_t = "N/A"
+                next_angle_t = "N/A"
 
             if n == chunksize - 1:
                 end = True
 
-            current_state_parameters = [dist, ori, angle]
+            current_state_parameters_r = [dist_r, ori_r, angle_r]
+            current_state_parameters_t = [dist_t, ori_t, angle_t]
 
             # Calculate the action
-            if ADJ:
-                State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
-                beam_nr, adj_action_index = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr,
-                                                               Nlt)  # TODO måske ændre sidste output til "limiting factors"
-                action_index = adj_action_index
+            if ADJ_r:
+                # State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
+                # beam_nr, adj_action_index = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr,
+                #                                                Nlt)  # TODO måske ændre sidste output til "limiting factors"
+                # action_index = adj_action_index
+                State_r.state = State_r.build_state(tuple([previous_beam_nr_r, previous_beam_nr_t]), current_state_parameters_r, tuple([previous_action_r, previous_action_t]))
+                # TODO ===|||=== Hvis state skal være forskellig skal der ændres ting her ===|||===
+                beam_nr_r, adj_action_index_r = Agent_r.e_greedy_adj(helpers.state_to_index(State_r.state), beam_nr_r, Nlr)  # TODO måske ændre sidste output til "limiting factors"
+                action_index_r = adj_action_index_r
+                State_t.state = State_t.build_state(tuple([previous_beam_nr_r, previous_beam_nr_t]), current_state_parameters_t, tuple([previous_action_r, previous_action_t]))
+                # TODO ===|||=== Hvis state skal være forskellig skal der ændres ting her ===|||===
+                beam_nr_t, adj_action_index_t = Agent_t.e_greedy_adj(helpers.state_to_index(State_t.state), beam_nr_t, Nlt)  # TODO måske ændre sidste output til "limiting factors"
+                action_index_t = adj_action_index_t
             else:
-                State.state = State.build_state(previous_beam_nr, current_state_parameters)
-                beam_nr = Agent.e_greedy(helpers.state_to_index(State.state))
-                action_index = beam_nr
+                # State.state = State.build_state(previous_beam_nr, current_state_parameters)
+                # beam_nr = Agent.e_greedy(helpers.state_to_index(State.state))
+                # action_index = beam_nr
+                State_r.state = State_r.build_state(previous_beam_nr_r, current_state_parameters_r)
+                beam_nr_r = Agent_r.e_greedy(helpers.state_to_index(State_r.state))
+                action_index_r = beam_nr_r
+                State_t.state = State_t.build_state(previous_beam_nr_t, current_state_parameters_t)
+                beam_nr_t = Agent_t.e_greedy(helpers.state_to_index(State_t.state))
+                action_index_t = beam_nr_t
 
             # Get reward from performing action
 
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n+data_idx, beam_nr)
+            R, R_max, R_min, R_mean = Env.take_action(path_idx, n+data_idx, beam_nr_r, beam_nr_t)
 
             # Update Q-table
-            if METHOD == "SIMPLE":
-                Agent.update_simple(helpers.state_to_index(State.state), action_index, R)
+            if METHOD_r == "SIMPLE":
+                Agent_r.update_simple(helpers.state_to_index(State_r.state), action_index_r, R)
 
-            elif METHOD == "SARSA":
-                Agent.update_TD(helpers.state_to_index(previous_state),
-                                previous_action,
+            elif METHOD_r == "SARSA":
+                Agent_r.update_TD(helpers.state_to_index(previous_state_r),
+                                previous_action_r,
                                 R,
-                                helpers.state_to_index(State.state),
-                                action_index,
+                                helpers.state_to_index(State_r.state),
+                                action_index_r,
                                 end=end)
 
-            elif METHOD == "Q-LEARNING":
-                if ADJ:  # Note that next_action here is a direction index and not a beam number
-                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt)
+            elif METHOD_r == "Q-LEARNING":
+                if ADJ_r:  # Note that next_action here is a direction index and not a beam number
+                    next_beam_r, next_action_r = Agent_r.greedy_adj(helpers.state_to_index(State_r.state), beam_nr_r, Nlr)
                 else:  # Note that next_action is a beam number and not a direction index
-                    next_action = Agent.greedy(helpers.state_to_index(State.state))
+                    next_action_r = Agent_r.greedy(helpers.state_to_index(State_r.state))
 
-                Agent.update_TD(helpers.state_to_index(previous_state),
-                                previous_action,
+                Agent_r.update_TD(helpers.state_to_index(previous_state_r),
+                                previous_action_r,
                                 R,
-                                helpers.state_to_index(State.state),
-                                next_action,
+                                helpers.state_to_index(State_r.state),
+                                next_action_r,
                                 end=end)
             else:
-                raise Exception("Method not recognized")
+                raise Exception("Method not recognized for r")
+                
+            if METHOD_t == "SIMPLE":
+                Agent_t.update_simple(helpers.state_to_index(State_t.state), action_index_t, R)
 
-            action_log_r[episode, n] = action_index[0]
-            action_log_t[episode, n] = action_index[1]
-            beam_log_r[episode, n] = beam_nr[0]
-            beam_log_t[episode, n] = beam_nr[1]
+            elif METHOD_t == "SARSA":
+                Agent_t.update_TD(helpers.state_to_index(previous_state_t),
+                                previous_action_t,
+                                R,
+                                helpers.state_to_index(State_t.state),
+                                action_index_t,
+                                end=end)
+
+            elif METHOD_t == "Q-LEARNING":
+                if ADJ_t:  # Note that next_action here is a direction index and not a beam number
+                    next_beam_t, next_action_t = Agent_t.greedy_adj(helpers.state_to_index(State_t.state), beam_nr_t, Nlt)
+                else:  # Note that next_action is a beam number and not a direction index
+                    next_action_t = Agent_t.greedy(helpers.state_to_index(State_t.state))
+
+                Agent_t.update_TD(helpers.state_to_index(previous_state_t),
+                                previous_action_t,
+                                R,
+                                helpers.state_to_index(State_t.state),
+                                next_action_t,
+                                end=end)
+            else:
+                raise Exception("Method not recognized for t")
+
+            action_log_r[episode, n] = action_index_r[0]
+            action_log_t[episode, n] = action_index_t[0]
+            beam_log_r[episode, n] = beam_nr_r[0]
+            beam_log_t[episode, n] = beam_nr_t[0]
             R_log[episode, n] = R
             R_max_log[episode, n] = R_max
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
 
-            previous_state = State.state
-            previous_beam_nr = beam_nr
-            previous_action = action_index
+            previous_state_r = State_r.state
+            previous_state_t = State_t.state
+            previous_beam_nr_r = beam_nr_r
+            previous_beam_nr_t = beam_nr_t
+            previous_action_r = action_index_r
+            previous_action_t = action_index_t
 
     # %% Save pickle and hdf5
     data_reward = {
@@ -344,8 +500,10 @@ if __name__ == "__main__":
     }
     
     data_agent = {
-    'Agent': Agent,
-    'agent_settings': agent_settings,
+    'Agent_r': Agent_r, # TODO skal måske ikke kun være Agent_r, men også Agent_t
+    'Agent_t': Agent_t,
+    'agent_settings_r': agent_settings_r,
+    'agent_settings_t': agent_settings_t,
     'channel_settings': channel_settings,
     }
 

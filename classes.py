@@ -453,7 +453,7 @@ class Environment():
                 
         self.reward_matrix = R
 
-    def take_action(self, path_idx, stepnr, beam_nr):
+    def take_action(self, path_idx, stepnr, beam_nr_r, beam_nr_t):
         """
         Calculates the reward (signal strength) maximum achievable reward,
         minimum achievable reward and average reward based on an action
@@ -480,7 +480,7 @@ class Environment():
 
         """
         R = self.reward_matrix[path_idx, stepnr]
-        return R[beam_nr[1], beam_nr[0]], np.max(R), np.min(R), np.mean(R)
+        return R[beam_nr_t, beam_nr_r], np.max(R), np.min(R), np.mean(R)
 
     def update_data(self, AoA, AoD, Betas):
         """
@@ -611,7 +611,7 @@ class State:
 
 # %% Agent Class
 class Agent:
-    def __init__(self, action_space_r, action_space_t, alpha=["constant", 0.7], eps=0.1, gamma=0.7, c=200):
+    def __init__(self, action_space, alpha=["constant", 0.7], eps=0.1, gamma=0.7, c=200):
         """
         Initiate a reinforcement learning agent
 
@@ -633,8 +633,9 @@ class Agent:
         None.
 
         """
-        self.action_space_r = action_space_r  # Number of beam directions for receiver
-        self.action_space_t = action_space_t  # Number of beam directions for transmitter
+        # self.action_space_r = action_space_r  # Number of beam directions for receiver
+        # self.action_space_t = action_space_t  # Number of beam directions for transmitter
+        self.action_space = action_space
         self.alpha_start = alpha[1]
         self.alpha_method = alpha[0]
         self.alpha = defaultdict(self._initiate_dict(alpha[1]))
@@ -704,18 +705,26 @@ class Agent:
             The chosen action.
 
         """
-        beam_dir_r = np.random.choice(self.action_space_r)
-        beam_dir_t = np.random.choice(self.action_space_t)
-        beam_dirs = tuple((beam_dir_r, beam_dir_t))
-        r_est = self.Q[state, beam_dirs][0]
+        # beam_dir_r = np.random.choice(self.action_space_r)
+        # beam_dir_t = np.random.choice(self.action_space_t)
+        # beam_dirs = tuple((beam_dir_r, beam_dir_t))
+        beam_dir = tuple(np.random.choice(self.action_space))
+        r_est = self.Q[state, beam_dir][0]
 
-        for action_r in self.action_space_r:
-            for action_t in self.action_space_t:
-                if self.Q[state, tuple((action_r, action_t))][0] > r_est:
-                    beam_dirs = tuple((action_r, action_t))
-                    r_est = self.Q[state, tuple((action_r, action_t))][0]
+        # for action_r in self.action_space_r:
+        #     for action_t in self.action_space_t:
+        #         if self.Q[state, tuple((action_r, action_t))][0] > r_est:
+        #             beam_dirs = tuple((action_r, action_t))
+        #             r_est = self.Q[state, tuple((action_r, action_t))][0]
+                    
+        for action in self.action_space:
+            if self.Q[state, tuple(action)][0] > r_est:
+                beam_dirs = tuple(action)
+                r_est = self.Q[state, tuple(action)][0]
+                    
 
-        return beam_dirs
+        # return beam_dirs
+        return beam_dir
 
     def e_greedy(self, state):
         """
@@ -736,7 +745,7 @@ class Agent:
         if np.random.random() > self.eps:
             return self.greedy(state)
         else:
-            return tuple((np.random.choice(self.action_space_r), np.random.choice(self.action_space_t)))
+            return tuple(np.random.choice(self.action_space))
 
     def get_action_list_adj(self, last_action, Nlayers, action_space):
         """
@@ -798,7 +807,7 @@ class Agent:
 
         return actions, dir_list
 
-    def greedy_adj(self, state, last_action, Nlr, Nlt):
+    def greedy_adj(self, state, last_action, Nl):
         """
         Calculates the optimal action according to the greedy policy
         when actions are restricted to choosing adjecent beams
@@ -821,26 +830,34 @@ class Agent:
 
         """
 
-        actions_r, dir_list_r = self.get_action_list_adj(last_action[0], Nlr, self.action_space_r)
-        actions_t, dir_list_t = self.get_action_list_adj(last_action[1], Nlt, self.action_space_t)
+        # actions_r, dir_list_r = self.get_action_list_adj(last_action[0], Nlr, self.action_space_r)
+        # actions_t, dir_list_t = self.get_action_list_adj(last_action[1], Nlt, self.action_space_t)
+        actions, dir_list = self.get_action_list_adj(last_action[0], Nl, self.action_space)
 
-        choice_r = np.random.randint(0, len(dir_list_r))
-        choice_t = np.random.randint(0, len(dir_list_t))
-        next_action = tuple((actions_r[choice_r], actions_t[choice_t]))
-        next_dir = tuple((dir_list_r[choice_r], dir_list_t[choice_t]))
+        # choice_r = np.random.randint(0, len(dir_list_r))
+        # choice_t = np.random.randint(0, len(dir_list_t))
+        choice = np.random.randint(0, len(dir_list))
+        next_action = tuple([actions[choice]])
+        next_dir = tuple([dir_list[choice]])
         r_est = self.Q[state, next_dir][0]
 
 
-        for idx_r, last_dir_r in enumerate(dir_list_r):
-            for idx_t, last_dir_t in enumerate(dir_list_t):
-                if self.Q[state, tuple((last_dir_r, last_dir_t))][0] > r_est:
-                    next_action = tuple((actions_r[idx_r], actions_t[idx_t]))
-                    next_dir = tuple((last_dir_r, last_dir_t))
-                    r_est = self.Q[state, tuple((last_dir_r, last_dir_t))][0]
+        # for idx_r, last_dir_r in enumerate(dir_list_r):
+        #     for idx_t, last_dir_t in enumerate(dir_list_t):
+        #         if self.Q[state, tuple((last_dir_r, last_dir_t))][0] > r_est:
+        #             next_action = tuple((actions_r[idx_r], actions_t[idx_t]))
+        #             next_dir = tuple((last_dir_r, last_dir_t))
+        #             r_est = self.Q[state, tuple((last_dir_r, last_dir_t))][0]
+        
+        for idx, last_dir in enumerate(dir_list):
+            if self.Q[state, tuple([last_dir])][0] > r_est:
+                next_action = tuple([actions[idx]])
+                next_dir = tuple([last_dir])
+                r_est = self.Q[state, tuple([last_dir])][0]
 
         return next_action, next_dir
 
-    def e_greedy_adj(self, state, last_action, Nlr, Nlt):
+    def e_greedy_adj(self, state, last_action, Nl):
         """
         Calculates the optimal action according to the epsilon greedy policy
         when actions are restricted to choosing adjecent beams
@@ -863,16 +880,18 @@ class Agent:
 
         """
         if np.random.random() > self.eps:
-            next_action, next_dir = self.greedy_adj(state, last_action, Nlr, Nlt)
+            next_action, next_dir = self.greedy_adj(state, last_action, Nl)
         else:
-            actions_r, dir_list_r = self.get_action_list_adj(last_action[0], Nlr, self.action_space_r)
-            actions_t, dir_list_t = self.get_action_list_adj(last_action[1], Nlt, self.action_space_t)
+            # actions_r, dir_list_r = self.get_action_list_adj(last_action[0], Nlr, self.action_space_r)
+            # actions_t, dir_list_t = self.get_action_list_adj(last_action[1], Nlt, self.action_space_t)
+            actions, dir_list = self.get_action_list_adj(last_action[0], Nl, self.action_space)
 
-            choice_r = np.random.randint(0, len(dir_list_r))
-            choice_t = np.random.randint(0, len(dir_list_t))
+            # choice_r = np.random.randint(0, len(dir_list_r))
+            # choice_t = np.random.randint(0, len(dir_list_t))
+            choice = np.random.randint(0, len(dir_list))
 
-            next_action = tuple((actions_r[choice_r], actions_t[choice_t]))
-            next_dir = tuple((dir_list_r[choice_r], dir_list_t[choice_t]))
+            next_action = tuple([actions[choice]])
+            next_dir = tuple([dir_list[choice]])
 
         return next_action, next_dir
 
