@@ -292,6 +292,18 @@ def codebook(N, k, lambda_):
 
     return codebook
 
+def codebook2(Nb, N):
+    """
+    Calculates the codebook based on the number of antennae and beams
+    :param Nb: Number of beams
+    :param N: Number of antennae
+    :return: Codebook matrix
+    """
+    Cb = np.zeros((Nb, N), dtype=np.complex128)
+    for n in range(Nb):
+        Cb[n, :] = ((1 / np.sqrt(N)) * np.exp(-1j * np.pi * np.arange(N) * ((2 * n - Nb) / (Nb))))
+
+    return Cb
 
 def angle_to_beam(AoA, W):
     """

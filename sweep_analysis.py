@@ -17,7 +17,7 @@ import h5py
 # %% Load results
 # pickle_data = helpers.load_pickle('Results/','before_preprocessing_car_urban_LOS_sarsa_TTFF_2-2-2-4-0-0_5000_300_results.pickle')
 # bulk_data = helpers.bulk_loader('Results/Centralized_Agent_Sweeps/HDF5/Decimated/')
-bulk_data = helpers.bulk_loader('Results/Sweep_loc2/')
+bulk_data = helpers.bulk_loader('Results/Sweep_full/')
 
 # %% Data analysis
 
@@ -49,26 +49,36 @@ for test_idx, test in enumerate(nt.natsorted(bulk_data.keys())):
     # Meanalignment = R_mean_log_db - R_max_log_db
     averaged_episodes = np.abs(np.average(Misalignment, axis=1))
 
-    # averaged_episodes = np.abs(np.average(Meanalignment, axis = 1))
 
     for idx, (start, stop) in enumerate(span):
         plot_array[test_idx, idx] = np.average(averaged_episodes[start:stop])
         
-    plt.plot(plot_array[test_idx,:], label=test, marker = 'x')
+        # Label construction
+        stripped_label = test.lstrip('car_urbanpedestrian_NLOS_sarsaSIMPLEQ-LEARNING_TF_') # Removes leading information 
+        suffix_remove = stripped_label.lstrip('0123456789-') 
+        stripped_label = stripped_label.removesuffix(suffix_remove)
+    if stripped_label == '2-2-0-0-0-0':
+        plt.plot(plot_array[test_idx,:], color = 'k', label=stripped_label, marker = 'd', linestyle = 'dashed')
+    else:
+        plt.plot(plot_array[test_idx,:], label=stripped_label, marker = 'd')
+        
+    # Constructs the title for the plot
+title_remove = test.lstrip('car_urbanpedestrian_NLOS_sarsaSIMPLEQ-LEARNING_')
 
-plt.legend(bbox_to_anchor = (0,-0.1), loc = "upper left")
-# plots.barplot(False, plot_array, span)
-# plt.plot(plot_array.T, marker='x')
-# plt.legend(['4','8','16','32'])
-plt.title('Location 2')
+plot_title = test.removesuffix('_'+title_remove)+suffix_remove
+
+lgd = plt.legend(bbox_to_anchor = (0.5,-0.25), loc = "upper center")
+
+
+plt.xticks(range(len(span)),span, rotation = 20)
+plt.xlabel("Episode range [-,-]")
+plt.ylabel("Average absolute misalignment [dB]")
+plt.grid(True, axis = 'x')
+plt.title(plot_title)
+# plt.savefig("Figures/Performance_CPLS.pdf", bbox_extra_artists=(lgd,), bbox_inches='tight') # Saves the figure
+
 plt.show()
 
 bulk_data.close()
 
-# R_log_db = 10*np.log10(R_log_db)
-# R_max_log_db = 10*np.log10(R_max_log_db)
-# R_min_log_db = 10*np.log10(R_min_log_db)
-# R_mean_log_db = 10*np.log10(R_mean_log_db)
 
-
-# Misalignment_log_dB = R_log_db - R_max_log_db

@@ -19,7 +19,7 @@ if len(cmd_input) > 1:
     CHANNEL_SETTINGS = sys.argv[1]
     AGENT_SETTINGS = sys.argv[2]
 else:
-    CHANNEL_SETTINGS = "car_urban_LOS_32_users_10000_steps"
+    CHANNEL_SETTINGS = "car_urban_LOS_16_users_10000_steps"
     AGENT_SETTINGS = "SARSA_TFFF_2-2-0-0-0-0_5000_1000"
 
 # %% main
@@ -105,9 +105,11 @@ if __name__ == "__main__":
 
     # Calculate hierarchical-codebook - Transmitter
     precoder_codebook = helpers.codebook(Nt, Nlt, lambda_)
+    # precoder_codebook = helpers.codebook2(16,32)
 
     # Calculate hierarchical-codebook - Receiver
     combiner_codebook = helpers.codebook(Nr, Nlr, lambda_)
+    # combiner_codebook = helpers.codebook2(8,8)
 
     # Calculate the AoA in the local coordinate system of the user terminal
     for m in range(M):
