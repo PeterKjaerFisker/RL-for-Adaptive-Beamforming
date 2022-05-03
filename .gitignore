@@ -1,5 +1,7 @@
 .idea/
 __pycache__/
+quadriga_src/
+tutorials/
 *.asv
 Test.py
 results.pickle
