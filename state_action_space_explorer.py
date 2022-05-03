@@ -13,7 +13,7 @@ import helpers
 # %% main
 if __name__ == "__main__":
     # CHANNEL_SETTINGS = "car_urban_NLOS_16_users_10000_steps"
-    CHANNEL_SETTINGS = "pedestrian_NLOS_8_users_20000_steps"
+    CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
     # AGENT_SETTINGS = "sarsa_TFFF_1-0-0-0-0-0_1000_1"
 
     directory = os.fsencode("Settings/sweep")
@@ -23,7 +23,7 @@ if __name__ == "__main__":
         AGENT_SETTINGS = os.fsdecode(file)
         if AGENT_SETTINGS.endswith(".json"):
             # Load Channel Settings for simulation
-            with open(f'Settings/{CHANNEL_SETTINGS}.json', 'r') as fs:
+            with open(f'Settings/Channel_settings/{CHANNEL_SETTINGS}.json', 'r') as fs:
                 channel_settings = json.load(fs)
 
             # Load Agent Settings for simulation
@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
             t_start = time()
             # Load the data
-            channel_par, pos_log = helpers.load_data(f"Data_set_gen_2/data_pos_{FILENAME}.mat", f"Data_set_gen_2/data_{FILENAME}")
+            channel_par, pos_log = helpers.load_data(f"data_pos_{FILENAME}.mat", f"data_{FILENAME}")
             print(f"Took: {time() - t_start}", flush=True)
 
             # Re-affirm that "M" matches data
@@ -138,14 +138,6 @@ if __name__ == "__main__":
             angle_discrete = None
 
             # ----------- Starts the simulation -----------
-
-            # Initializing arrays for logs.
-            action_log_r = np.zeros([Episodes, chunksize])
-            action_log_t = np.zeros([Episodes, chunksize])
-            beam_log_r = np.zeros([Episodes, chunksize])
-            beam_log_t = np.zeros([Episodes, chunksize])
-            R_log = np.zeros([Episodes, chunksize])
-
             Agent = classes.Agent(action_space_r, action_space_t, eps=1, alpha=["constant", 0.7])
 
             for episode in tqdm(range(Episodes), desc="Episodes"):
@@ -175,7 +167,7 @@ if __name__ == "__main__":
                 if n_actions_r > 0:
                     State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r))]
                 else:
-                    State_tmp = [list("N/A")]
+                    State_tmp = [["N/A"]]
 
                 if n_actions_t > 0:
                     State_tmp.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t)))
@@ -294,22 +286,21 @@ if __name__ == "__main__":
                     else:
                         raise Exception("Method not recognized")
 
-                    action_log_r[episode, n] = action_index[0]
-                    action_log_t[episode, n] = action_index[1]
-                    beam_log_r[episode, n] = beam_nr[0]
-                    beam_log_t[episode, n] = beam_nr[1]
-                    R_log[episode, n] = R
-
                     previous_state = helpers.state_to_index(State.state)
                     previous_beam_nr = beam_nr
                     previous_action = action_index
 
+
         val = 0
+        keys = []
         for key, value in Agent.Q.items():
-            if value != [1.40079, 1]:
+            if value[1] > 10:
+                keys.append(key)
                 val += 1
+        print(val)
         table_sizes[RESULT_NAME] = val
     print("done")
+
 # Fjern dårlige states
 # Gem til en default_dict
 # Gem til pickle til sidst.

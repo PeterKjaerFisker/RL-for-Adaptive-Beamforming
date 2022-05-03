@@ -9,10 +9,10 @@ cmd_input = sys.argv
 if len(cmd_input) > 1:
     CHANNEL_SETTINGS = sys.argv[1]
 else:
-    CHANNEL_SETTINGS = "pedestrian_LOS_8_users_20000_steps"
+    CHANNEL_SETTINGS = "pedestrian_LOS_2_users_20000_steps"
 
 # Load Settings for simulation
-with open(f'Settings/{CHANNEL_SETTINGS}.json', 'r') as fs:
+with open(f'Settings/Channel_settings/{CHANNEL_SETTINGS}.json', 'r') as fs:
     setting = json.load(fs)
 
 # Load global parameters

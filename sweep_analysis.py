@@ -27,7 +27,8 @@ bulk_data = helpers.bulk_loader('Results/Sweep_full/')
 # span = [(0,50),(50,100),(100,150),(150,200),(200,250),(250,300)]
 # span = [(0,1000),(4500,5500),(9000,10000)]
 # span = [(0,1000),(2250,3250),(4500,5500),(6750,7750),(9000,10000)]
-span = [(00,1000),(1000,2000),(2000,3000),(3000,4000),(4000,5000),(5000,6000),(6000,7000),(7000,8000),(8000,9000),(9000,10000)]
+span = [(0, 1000), (1000, 2000), (2000, 3000), (3000, 4000), (4000, 5000), (5000, 6000), (6000, 7000), (7000, 8000),
+        (8000, 9000), (9000, 10000)]
 # span = [(x*100,(x+1)*100) for x in range(100)]
 
 dim1 = len(bulk_data)
@@ -49,36 +50,33 @@ for test_idx, test in enumerate(nt.natsorted(bulk_data.keys())):
     # Meanalignment = R_mean_log_db - R_max_log_db
     averaged_episodes = np.abs(np.average(Misalignment, axis=1))
 
-
     for idx, (start, stop) in enumerate(span):
         plot_array[test_idx, idx] = np.average(averaged_episodes[start:stop])
-        
+
         # Label construction
-        stripped_label = test.lstrip('car_urbanpedestrian_NLOS_sarsaSIMPLEQ-LEARNING_TF_') # Removes leading information 
-        suffix_remove = stripped_label.lstrip('0123456789-') 
+        stripped_label = test.lstrip(
+            'car_urbanpedestrian_NLOS_sarsaSIMPLEQ-LEARNING_TF_')  # Removes leading information
+        suffix_remove = stripped_label.lstrip('0123456789-')
         stripped_label = stripped_label.removesuffix(suffix_remove)
     if stripped_label == '2-2-0-0-0-0':
-        plt.plot(plot_array[test_idx,:], color = 'k', label=stripped_label, marker = 'd', linestyle = 'dashed')
+        plt.plot(plot_array[test_idx, :], color='k', label=stripped_label, marker='d', linestyle='dashed')
     else:
-        plt.plot(plot_array[test_idx,:], label=stripped_label, marker = 'd')
-        
+        plt.plot(plot_array[test_idx, :], label=stripped_label, marker='d')
+
     # Constructs the title for the plot
 title_remove = test.lstrip('car_urbanpedestrian_NLOS_sarsaSIMPLEQ-LEARNING_')
 
-plot_title = test.removesuffix('_'+title_remove)+suffix_remove
+plot_title = test.removesuffix('_' + title_remove) + suffix_remove
 
-lgd = plt.legend(bbox_to_anchor = (0.5,-0.25), loc = "upper center")
+lgd = plt.legend(bbox_to_anchor=(0.5, -0.25), loc="upper center")
 
-
-plt.xticks(range(len(span)),span, rotation = 20)
+plt.xticks(range(len(span)), span, rotation=20)
 plt.xlabel("Episode range [-,-]")
 plt.ylabel("Average absolute misalignment [dB]")
-plt.grid(True, axis = 'x')
+plt.grid(True, axis='x')
 plt.title(plot_title)
 # plt.savefig("Figures/Performance_CPLS.pdf", bbox_extra_artists=(lgd,), bbox_inches='tight') # Saves the figure
 
 plt.show()
 
 bulk_data.close()
-
-

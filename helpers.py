@@ -167,6 +167,17 @@ def dump_hdf5(data, path, filename):
                 f.create_dataset(f'/{key}', data = value)
             except KeyError:
                 f.create_dataset(f'/{key}', data = value)
+        f.close()     
+        
+def dump_hdf5_validate(data, path, filename):
+    with h5py.File(path+filename, "a") as f:
+        for dataset, data_dict in data.items():
+            for variable, value in data_dict.items():
+                try:
+                    del f[f'{dataset}/{variable}']
+                    f.create_dataset(f'/{dataset}/{variable}', data = value)
+                except KeyError:
+                    f.create_dataset(f'/{dataset}/{variable}', data = value)
         f.close()
 
 
