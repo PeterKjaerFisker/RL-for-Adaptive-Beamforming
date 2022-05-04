@@ -17,18 +17,19 @@ import h5py
 # %% Load results
 # pickle_data = helpers.load_pickle('Results/','before_preprocessing_car_urban_LOS_sarsa_TTFF_2-2-2-4-0-0_5000_300_results.pickle')
 # bulk_data = helpers.bulk_loader('Results/Centralized_Agent_Sweeps/HDF5/Decimated/')
-bulk_data = helpers.bulk_loader('Results/Multi_test/')
+# bulk_data = helpers.bulk_loader('Results/Multi_test/')
+bulk_data = h5py.File('Results/Multi_test/pedestrian_LOS_SARSA_TFFT_2-2-0-0-2-32_7000_10000_validated_results.hdf5','r+')
 
 # %% Data analysis
 
 # span = [(0,100),(100,200),(200,300),(300,400),(400,500),(500,600),(600,700),(700,800),(800,900),(900,1000)]
 # span = [(0, 1000),(1000, 2000),(2000, 3000),(3000, 4000),(4000, 5000),(5000, 6000),(6000, 7000),(7000, 8000), (8000, 9000),(9000, 10000)]
 # span = [(0, 250),(250, 500),(500, 750),(750, 1000),(1000, 1250),(1250, 1500),(1500, 1750),(1750, 2000), (2000, 2250),(2250, 2500)]
-span = [(0,50),(50,100),(100,150),(150,200),(200,250),(250,300)]
+# span = [(0,50),(50,100),(100,150),(150,200),(200,250),(250,300)]
 # span = [(0,1000),(4500,5500),(9000,10000)]
 # span = [(0,1000),(2250,3250),(4500,5500),(6750,7750),(9000,10000)]
 # span = [(00,1000),(1000,2000),(2000,3000),(3000,4000),(4000,5000),(5000,6000),(6000,7000),(7000,8000),(8000,9000),(9000,10000)]
-# span = [(x*100,(x+1)*100) for x in range(100)]
+span = [(x*100,(x+1)*100) for x in range(100)]
 
 dim1 = len(bulk_data)
 dim2 = len(span)

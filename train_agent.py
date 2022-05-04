@@ -62,6 +62,7 @@ if __name__ == "__main__":
     fc = channel_settings["fc"]  # Center frequency
     P_t = channel_settings["P_t"]  # Transmission power
     lambda_ = 3e8 / fc  # Wave length
+    P_n = 0 # Power of the noise
 
     # ----------- Reinforcement Learning Parameters -----------
     METHOD_r = agent_settings_r["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
@@ -416,7 +417,7 @@ if __name__ == "__main__":
 
             # Get reward from performing action
 
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n+data_idx, beam_nr_r, beam_nr_t)
+            R, R_max, R_min, R_mean = Env.take_action(path_idx, n+data_idx, beam_nr_r, beam_nr_t, P_n)
 
             # Update Q-table
             if METHOD_r == "SIMPLE":

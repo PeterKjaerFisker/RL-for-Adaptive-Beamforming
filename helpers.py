@@ -687,5 +687,5 @@ def jit_reward(W, F, H, P_t):
     R = np.zeros((len(F[:, 0]), len(W[:, 0])))
     for p in range(len(F[:, 0])):
         for q in range(len(W[:, 0])):
-            R[p, q] = np.absolute((np.dot(np.dot(np.conjugate(W[q, :]).T, H), F[p, :]) * np.sqrt(P_t))) ** 2
-    return R
+            R[p, q] = np.absolute((np.dot(np.dot(np.conjugate(W[q, :]).T, H), F[p, :]) * np.sqrt(P_t)) ) ** 2
+    return R                                                                   # Noise should be here ^ in reality
