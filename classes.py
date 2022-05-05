@@ -448,12 +448,11 @@ class Environment():
                     alpha_rx,
                     alpha_tx)
 
-
                 R[path_idx, stepnr] = helpers.jit_reward(self.W, self.F, H, self.P_t)
-                
+
         self.reward_matrix = R
 
-    def take_action(self, path_idx, stepnr, beam_nr):
+    def take_action(self, path_idx, stepnr, beam_nr, p_n=0):
         """
         Calculates the reward (signal strength) maximum achievable reward,
         minimum achievable reward and average reward based on an action
@@ -480,6 +479,8 @@ class Environment():
 
         """
         R = self.reward_matrix[path_idx, stepnr]
+        n = np.random.normal(0, p_n / 2, R.shape) + 1j * np.random.normal(0, p_n / 2, R.shape)
+        R = np.abs(np.sqrt(R) + n) ** 2
         return R[beam_nr[1], beam_nr[0]], np.max(R), np.min(R), np.mean(R)
 
     def update_data(self, AoA, AoD, Betas):
