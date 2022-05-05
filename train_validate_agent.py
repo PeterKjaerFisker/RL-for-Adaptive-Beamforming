@@ -16,16 +16,20 @@ import helpers
 cmd_input = sys.argv
 if len(cmd_input) > 1:
     CHANNEL_SETTINGS = sys.argv[1]
-    VALIDATION_SETTINGS = sys.argv[2]
-    AGENT_SETTINGS = sys.argv[3]
+    AGENT_SETTINGS = sys.argv[2]
+    validate_eps = float(sys.argv[3])
+    validate_alpha = float(sys.argv[4])
+    validate_gamma = float(sys.argv[5])
 else:
     CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
-    VALIDATION_SETTINGS = "pedestrian_LOS_10_users_20000_steps_validation"
     AGENT_SETTINGS = "SARSA_TFFT_2-2-0-0-2-32_7000_2000"
+    validate_eps = 1
+    validate_alpha = 0.05
+    validate_gamma = 0.7
 
 # %% main
 if __name__ == "__main__":
-
+    VALIDATION_SETTINGS = "pedestrian_LOS_10_users_20000_steps_validation"
     # Load Channel Settings for simulation
     with open(f'Settings/Channel_settings/{CHANNEL_SETTINGS}.json', 'r') as fs:
         channel_settings = json.load(fs)
@@ -37,8 +41,6 @@ if __name__ == "__main__":
     # Load Agent Settings for simulation
     with open(f'Settings/{AGENT_SETTINGS}.json', 'r') as fs:
         agent_settings = json.load(fs)
-
-
 
     # Load global parameters
     RESULT_NAME = agent_settings["RESULT_NAME"]
@@ -61,10 +63,11 @@ if __name__ == "__main__":
     fc_validation = validation_settings["fc"]  # Center frequency
     P_t_validation = validation_settings["P_t"]  # Transmission power
     lambda_validation = 3e8 / fc  # Wave length
-    Episodes_validation = 10000
+    Episodes_validation = M
 
     # ----------- Reinforcement Learning Parameters -----------
     METHOD = agent_settings["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
+    EPSILON_METHOD = "decaying"
     ADJ = agent_settings["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
     ORI = agent_settings["ORI"]  # Include the User Terminal orientation in the state
     DIST = agent_settings["DIST"]  # Include the distance between User Terminal and Base Station in the state
@@ -92,7 +95,7 @@ if __name__ == "__main__":
 
     # Load the validation data
     channel_par_validation, pos_log_validation = helpers.load_data(f"data_pos_{VALIDATION_FILE}.mat",
-                                             f"data_{VALIDATION_FILE}")
+                                                                   f"data_{VALIDATION_FILE}")
 
     print(f"Took: {time() - t_start}", flush=True)
 
@@ -159,7 +162,8 @@ if __name__ == "__main__":
         AoA_Local.append(helpers.get_local_angle(AoA_Global[m][0], Orientation[m][0][2, :]))
 
     for m in range(M_validation):
-        AoA_Local_validation.append(helpers.get_local_angle(AoA_Global_validation[m][0], Orientation_validation[m][0][2, :]))
+        AoA_Local_validation.append(
+            helpers.get_local_angle(AoA_Global_validation[m][0], Orientation_validation[m][0][2, :]))
 
     # ----------- Prepare the simulation - RL -----------
     # Create the Environment
@@ -233,7 +237,7 @@ if __name__ == "__main__":
     R_min_log_validation = np.zeros([Episodes_validation, chunksize])
     R_mean_log_validation = np.zeros([Episodes_validation, chunksize])
 
-    Agent = classes.Agent(action_space_r, action_space_t, eps=0.05, alpha=["constant", 0.05])
+    Agent = classes.Agent(action_space_r, action_space_t, eps=[f'{EPSILON_METHOD}', 0.05], alpha=["constant", 0.05])
 
     print('Rewards for training are now calculated')
     reward_start = time()
@@ -307,6 +311,8 @@ if __name__ == "__main__":
             previous_action = beam_nr
 
         end = False
+
+        Agent.reset_epsilon()
         # Run the episode
         for n in range(chunksize):
 
@@ -361,15 +367,15 @@ if __name__ == "__main__":
 
             # Update Q-table
             if METHOD == "SIMPLE":
-                Agent.update_simple(helpers.state_to_index(State.state), action_index, R)
+                TD_error = Agent.update_simple(helpers.state_to_index(State.state), action_index, R)
 
             elif METHOD == "SARSA":
-                Agent.update_TD(helpers.state_to_index(previous_state),
-                                previous_action,
-                                R,
-                                helpers.state_to_index(State.state),
-                                action_index,
-                                end=end)
+                TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
+                                           previous_action,
+                                           R,
+                                           helpers.state_to_index(State.state),
+                                           action_index,
+                                           end=end)
 
             elif METHOD == "Q-LEARNING":
                 if ADJ:  # Note that next_action here is a direction index and not a beam number
@@ -377,14 +383,16 @@ if __name__ == "__main__":
                 else:  # Note that next_action is a beam number and not a direction index
                     next_action = Agent.greedy(helpers.state_to_index(State.state))
 
-                Agent.update_TD(helpers.state_to_index(previous_state),
-                                previous_action,
-                                R,
-                                helpers.state_to_index(State.state),
-                                next_action,
-                                end=end)
+                TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
+                                           previous_action,
+                                           R,
+                                           helpers.state_to_index(State.state),
+                                           next_action,
+                                           end=end)
             else:
                 raise Exception("Method not recognized")
+
+            Agent.update_epsilon(n+1, 800, TD_error, helpers.state_to_index(previous_state))
 
             action_log_r[episode, n] = action_index[0]
             action_log_t[episode, n] = action_index[1]
@@ -407,6 +415,9 @@ if __name__ == "__main__":
     Env.create_reward_matrix()
 
     print(f'Rewards tog {time() - reward_start} sekunder at regne')
+    Agent.eps = validate_eps
+    Agent.alpha = validate_alpha
+    Agent.gamma = validate_gamma
 
     for episode in tqdm(range(Episodes_validation), desc="Episodes"):
         """
@@ -472,6 +483,9 @@ if __name__ == "__main__":
             previous_action = beam_nr
 
         end = False
+
+        Agent.reset_epsilon()
+
         # Run the episode
         for n in range(chunksize):
 
@@ -551,6 +565,8 @@ if __name__ == "__main__":
             else:
                 raise Exception("Method not recognized")
 
+            Agent.update_epsilon(n+1, 400, TD_error, helpers.state_to_index(previous_state))
+
             action_log_r_validation[episode, n] = action_index[0]
             action_log_t_validation[episode, n] = action_index[1]
             beam_log_r_validation[episode, n] = beam_nr[0]
@@ -596,22 +612,21 @@ if __name__ == "__main__":
 
     try:
         if "NLOS" in channel_settings["scenarios"][0]:
-            helpers.dump_hdf5_validate(data_reward, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_hdf5_validate(data_reward, 'Results/',
+                                       f'{CASE}_NLOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_results.hdf5')
             # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
         else:
-            helpers.dump_hdf5_validate(data_reward, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_hdf5_validate(data_reward, 'Results/',
+                                       f'{CASE}_LOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_results.hdf5')
             # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
     except OSError as e:
         print(e)
         print("Saving to root folder instead")
         if "NLOS" in channel_settings["scenarios"][0]:
-            helpers.dump_hdf5_validate(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_hdf5_validate(data_reward, '',
+                                       f'{CASE}_NLOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_results.hdf5')
             # helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
         else:
-            helpers.dump_hdf5_validate(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_hdf5_validate(data_reward, '',
+                                       f'{CASE}_LOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_results.hdf5')
             # helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-
-
-
-
-

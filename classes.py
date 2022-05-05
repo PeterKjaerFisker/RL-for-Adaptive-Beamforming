@@ -612,7 +612,8 @@ class State:
 
 # %% Agent Class
 class Agent:
-    def __init__(self, action_space_r, action_space_t, alpha=["constant", 0.7], eps=0.1, gamma=0.7, c=200):
+    def __init__(self, action_space_r, action_space_t, alpha=["constant", 0.7], eps=["constant", 0.05], gamma=0.7,
+                 c=200):
         """
         Initiate a reinforcement learning agent
 
@@ -636,14 +637,37 @@ class Agent:
         """
         self.action_space_r = action_space_r  # Number of beam directions for receiver
         self.action_space_t = action_space_t  # Number of beam directions for transmitter
-        self.alpha_start = alpha[1]
         self.alpha_method = alpha[0]
-        self.alpha = defaultdict(self._initiate_dict(alpha[1]))
-        self.eps = eps
+        self.alpha = alpha[1]
+
+        self.eps_method = eps[0]
+        self.eps = eps[1]
+        self.eps_table = defaultdict(self._initiate_dict(1))
+        self.delta = 1 / 5  # The inverse of the expected amount of actions in any state. For adaptive epsilon
+
         self.gamma = gamma
         self.c = c
         self.Q = defaultdict(self._initiate_dict(0.001))
         self.accuracy = np.zeros(1)
+
+    def update_epsilon(self, timestep, weight, td_error, state):
+
+        if self.eps_method == "constant":
+            pass
+        elif self.eps_method == "decaying":
+            self.eps = np.exp(-timestep / weight)
+        elif self.eps_method == "adaptive":
+            ratio = (1 - np.exp(-np.abs(self.alpha * td_error) / weight)) / (
+                    1 + np.exp(-np.abs(self.alpha * td_error) / weight))
+            self.eps_table[state] = self.delta * ratio + (1 - self.delta) * self.eps_table[state]
+
+    def reset_epsilon(self):
+        if self.eps_method == "constant":
+            pass
+        elif self.eps_method == "decaying":
+            self.eps = 1
+        elif self.eps_method == "adaptive":
+            self.eps_table = defaultdict(self._initiate_dict(1))
 
     def _initiate_dict(self, value1, value2=0):
         """
@@ -666,29 +690,29 @@ class Agent:
         """
         return lambda: [value1, value2]
 
-    def _update_alpha(self, state, action):
-        """
-        Updates the alpha values if method "1/n" has been chosen
-
-        Parameters
-        ----------
-        state : ARRAY
-            Current position (x,y).
-        action : INT
-            Current action taken.
-
-        Returns
-        -------
-        None.
-
-        """
-        if self.alpha_method == "1/n":
-            if self.alpha[state, action][1] == 0:
-                self.alpha[state, action] = [self.alpha_start * (1 / 1),
-                                             1 + self.alpha[state, action][1]]
-            else:
-                self.alpha[state, action] = [self.alpha_start * (1 / self.alpha[state, action][1]),
-                                             1 + self.alpha[state, action][1]]
+    # def _update_alpha(self, state, action):
+    #     """
+    #     Updates the alpha values if method "1/n" has been chosen
+    #
+    #     Parameters
+    #     ----------
+    #     state : ARRAY
+    #         Current position (x,y).
+    #     action : INT
+    #         Current action taken.
+    #
+    #     Returns
+    #     -------
+    #     None.
+    #
+    #     """
+    #     if self.alpha_method == "1/n":
+    #         if self.alpha[state, action][1] == 0:
+    #             self.alpha[state, action] = [self.alpha_start * (1 / 1),
+    #                                          1 + self.alpha[state, action][1]]
+    #         else:
+    #             self.alpha[state, action] = [self.alpha_start * (1 / self.alpha[state, action][1]),
+    #                                          1 + self.alpha[state, action][1]]
 
     def greedy(self, state):
         """
@@ -734,7 +758,12 @@ class Agent:
             The chosen action.
 
         """
-        if np.random.random() > self.eps:
+        if self.eps_method == "adaptive":
+            epsilon = self.eps_table[state]
+        else:
+            epsilon = self.eps
+
+        if np.random.random() > epsilon:
             return self.greedy(state)
         else:
             return tuple((np.random.choice(self.action_space_r), np.random.choice(self.action_space_t)))
@@ -831,7 +860,6 @@ class Agent:
         next_dir = tuple((dir_list_r[choice_r], dir_list_t[choice_t]))
         r_est = self.Q[state, next_dir][0]
 
-
         for idx_r, last_dir_r in enumerate(dir_list_r):
             for idx_t, last_dir_t in enumerate(dir_list_t):
                 if self.Q[state, tuple((last_dir_r, last_dir_t))][0] > r_est:
@@ -863,7 +891,12 @@ class Agent:
             Which direction was chosen
 
         """
-        if np.random.random() > self.eps:
+        if self.eps_method == "adaptive":
+            epsilon = self.eps_table[state]
+        else:
+            epsilon = self.eps
+
+        if np.random.random() > epsilon:
             next_action, next_dir = self.greedy_adj(state, last_action, Nlr, Nlt)
         else:
             actions_r, dir_list_r = self.get_action_list_adj(last_action[0], Nlr, self.action_space_r)
@@ -898,11 +931,11 @@ class Agent:
         None.
 
         """
-
+        TD_error = (reward - self.Q[state, action][0])
         self.Q[state, action] = [
-            (self.Q[state, action][0] + self.alpha[state, action][0] * (reward - self.Q[state, action][0])),
+            (self.Q[state, action][0] + self.alpha * (reward - self.Q[state, action][0])),
             self.Q[state, action][1] + 1]
-        self._update_alpha(state, action)
+        return TD_error
 
     def update_TD(self, state, action, R, next_state, next_action, end=False):
         """
@@ -929,7 +962,9 @@ class Agent:
         else:
             next_Q = 0
 
-        self.Q[state, action] = [self.Q[state, action][0] + self.alpha[state, action][0] *
-                                 (R + self.gamma * next_Q - self.Q[state, action][0]),
-                                 self.Q[state, action][1] + 1]
-        self._update_alpha(state, action)
+        TD_error = (R + self.gamma * next_Q - self.Q[state, action][0])
+
+        self.Q[state, action] = [
+            self.Q[state, action][0] + self.alpha * (R + self.gamma * next_Q - self.Q[state, action][0]),
+            self.Q[state, action][1] + 1]
+        return TD_error
