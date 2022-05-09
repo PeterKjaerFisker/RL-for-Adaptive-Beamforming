@@ -6,7 +6,7 @@
 import numpy as np
 import sys
 
-import helpers
+import helpers_multi_agent
 import plots
 import h5py
 

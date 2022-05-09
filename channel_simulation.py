@@ -7,7 +7,7 @@
 import json
 import sys
 
-import helpers
+import helpers_multi_agent
 
 cmd_input = sys.argv
 if len(cmd_input) > 1:

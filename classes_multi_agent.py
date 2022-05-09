@@ -8,7 +8,7 @@ from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
 
-import helpers
+import helpers_multi_agent
 
 
 # %% Track
@@ -433,26 +433,27 @@ class Environment():
                 Beta = self.Betas[path_idx][0][stepnr, :]
 
                 # Calculate steering vectors for transmitter and receiver
-                alpha_rx = helpers.steering_vectors2d(direction=-1, theta=self.AoA[path_idx][stepnr, :],
+                alpha_rx = helpers_multi_agent.steering_vectors2d(direction=-1, theta=self.AoA[path_idx][stepnr, :],
                                                       N=self.Nr, lambda_=self.lambda_)
-                alpha_tx = helpers.steering_vectors2d(direction=1, theta=self.AoD[path_idx][0][stepnr, :],
+                alpha_tx = helpers_multi_agent.steering_vectors2d(direction=1, theta=self.AoD[path_idx][0][stepnr, :],
                                                       N=self.Nt, lambda_=self.lambda_)
 
                 alpha_rx = alpha_rx.reshape((len(alpha_rx), 1, self.Nr))
                 alpha_tx = alpha_tx.reshape((len(alpha_tx), 1, self.Nt))
 
-                H = helpers.get_H(
+                H = helpers_multi_agent.get_H(
                     self.Nr,
                     self.Nt,
                     Beta,
                     alpha_rx,
                     alpha_tx)
 
-                R[path_idx, stepnr] = helpers.jit_reward(self.W, self.F, H, self.P_t)
 
+                R[path_idx, stepnr] = helpers_multi_agent.jit_reward(self.W, self.F, H, self.P_t)
+                
         self.reward_matrix = R
 
-    def take_action(self, path_idx, stepnr, beam_nr, p_n=0):
+    def take_action(self, path_idx, stepnr, beam_nr_r, beam_nr_t, p_n = 0):
         """
         Calculates the reward (signal strength) maximum achievable reward,
         minimum achievable reward and average reward based on an action
@@ -479,9 +480,9 @@ class Environment():
 
         """
         R = self.reward_matrix[path_idx, stepnr]
-        n = np.random.normal(0, p_n / 2, R.shape) + 1j * np.random.normal(0, p_n / 2, R.shape)
-        R = np.abs(np.sqrt(R) + n) ** 2
-        return R[beam_nr[1], beam_nr[0]], np.max(R), np.min(R), np.mean(R)
+        n = np.random.normal(0,p_n/2,R.shape) + 1j * np.random.normal(0,p_n/2,R.shape)
+        R = np.abs(np.sqrt(R)+n)**2
+        return R[beam_nr_t, beam_nr_r], np.max(R), np.min(R), np.mean(R)
 
     def update_data(self, AoA, AoD, Betas):
         """

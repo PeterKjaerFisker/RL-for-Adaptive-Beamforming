@@ -15,7 +15,7 @@ from numba import njit
 import h5py
 import natsort as nt
 
-import classes
+import classes_multi_agent
 import plots
 import json
 
@@ -538,7 +538,7 @@ def create_pos_log(case, para, pos_log_name):
     print("Creating track")
 
     # Create the class
-    track = classes.Track(case=case, delta_t=sample_period, r_lim=r_lim)
+    track = classes_multi_agent.Track(case=case, delta_t=sample_period, r_lim=r_lim)
 
     pos_log_done = False
     while pos_log_done is False:
@@ -698,5 +698,5 @@ def jit_reward(W, F, H, P_t):
     R = np.zeros((len(F[:, 0]), len(W[:, 0])))
     for p in range(len(F[:, 0])):
         for q in range(len(W[:, 0])):
-            R[p, q] = np.absolute((np.dot(np.dot(np.conjugate(W[q, :]).T, H), F[p, :]) * np.sqrt(P_t))) ** 2
-    return R
+            R[p, q] = np.absolute((np.dot(np.dot(np.conjugate(W[q, :]).T, H), F[p, :]) * np.sqrt(P_t)) ) ** 2
+    return R                                                                   # Noise should be here ^ in reality
