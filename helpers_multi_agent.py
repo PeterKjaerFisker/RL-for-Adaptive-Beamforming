@@ -15,7 +15,7 @@ from numba import njit
 import h5py
 import natsort as nt
 
-import classes
+import classes_multi_agent
 import plots
 import json
 
@@ -527,7 +527,7 @@ def create_pos_log(case, para, pos_log_name):
     print("Creating track")
 
     # Create the class
-    track = classes.Track(case=case, delta_t=sample_period, r_lim=r_lim)
+    track = classes_multi_agent.Track(case=case, delta_t=sample_period, r_lim=r_lim)
 
     pos_log_done = False
     while pos_log_done is False:

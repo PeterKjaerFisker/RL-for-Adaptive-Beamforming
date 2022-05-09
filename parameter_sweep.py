@@ -6,7 +6,7 @@
 import json
 import sys
 
-import train_agent
+import train_multi_agent
 
 cmd_input = sys.argv
 if len(cmd_input) > 1:
