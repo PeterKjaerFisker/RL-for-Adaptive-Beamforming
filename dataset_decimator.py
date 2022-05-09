@@ -1,7 +1,5 @@
-import helpers_multi_agent
 import h5py
 import sys
-import numpy as np
 
 cmd_input = sys.argv
 if len(cmd_input) > 1:

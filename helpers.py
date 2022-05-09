@@ -15,13 +15,14 @@ from numba import njit
 import h5py
 import natsort as nt
 
-import classes_multi_agent
+import classes
 import plots
 import json
 
 
 # %% Functions
-def create_agent_setting(method, Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, chunksize, episodes, Pretty_parameter=None):
+def create_agent_setting(method, Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res, chunksize, episodes,
+                         Pretty_parameter=None):
     """
     Saves an agent settings file, containing the specified settings from inputs
 
@@ -48,12 +49,12 @@ def create_agent_setting(method, Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res
 
     """
     method = method.upper()
-    
+
     if Nb_r or Nb_t:
         Beam_s = "T"
     else:
         Beam_s = "F"
-    
+
     if Ori_res == 0:
         Ori = False
         Ori_s = "F"
@@ -79,7 +80,8 @@ def create_agent_setting(method, Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res
         Ang_s = "T"
 
     result_name = method + '_' + Beam_s + Ori_s + Dist_s + Ang_s + "_" + str(Nb_r) + "-" + str(Nb_t) + "-" + str(
-        Ori_his) + "-" + str(Ori_res) + "-" + str(Dist_res) + "-" + str(Ang_res) + "_" + str(chunksize) + "_" + str(episodes)
+        Ori_his) + "-" + str(Ori_res) + "-" + str(Dist_res) + "-" + str(Ang_res) + "_" + str(chunksize) + "_" + str(
+        episodes)
 
     data = {
         "RESULT_NAME": result_name,
@@ -109,19 +111,17 @@ def create_agent_setting(method, Nb_r, Nb_t, Ori_his, Ori_res, Dist_res, Ang_res
     with open("./Settings/" + result_name + ".json", 'w') as outfile:
         json.dump(data, outfile, indent=Pretty_parameter)
 
+
 def bulk_loader(path_to_dir):
     try:
         os.remove('plot_data.hdf5')
     except Exception as e:
         print(e)
-    myfile = h5py.File('plot_data.hdf5','a')
+    myfile = h5py.File('plot_data.hdf5', 'a')
     folder = os.fsencode(path_to_dir)
-    
-    # tmp1 = os.listdir(folder)
-    # tmp2 = nt.natsorted(os.listdir(folder))
     sorted_dir = nt.natsorted([os.fsdecode(element) for element in os.listdir(folder)])
-    # tmp4 = nt.natsorted(tmp3)
-    
+
+
     for idx, filename in enumerate(sorted_dir):
 
         try:
@@ -130,11 +130,12 @@ def bulk_loader(path_to_dir):
             pass
 
         if filename.endswith(".hdf5"):
-            myfile[f'{filename.strip("_results.hdf5")}'] = h5py.ExternalLink(path_to_dir+filename, '/')
+            myfile[f'{filename.strip("_results.hdf5")}'] = h5py.ExternalLink(path_to_dir + filename, '/')
         else:
             pass
 
     return myfile
+
 
 def dump_pickle(data, path, filename):
     """
@@ -157,27 +158,28 @@ def dump_pickle(data, path, filename):
     with open(path + filename, 'wb+') as f:
         # Pickle the 'data' dictionary using the highest protocol available.
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-        
+
+
 def dump_hdf5(data, path, filename):
-    
-    with h5py.File(path+filename, "a") as f:
+    with h5py.File(path + filename, "a") as f:
         for key, value in data.items():
             try:
                 del f[f'{key}']
-                f.create_dataset(f'/{key}', data = value)
+                f.create_dataset(f'/{key}', data=value)
             except KeyError:
-                f.create_dataset(f'/{key}', data = value)
-        f.close()     
-        
+                f.create_dataset(f'/{key}', data=value)
+        f.close()
+
+
 def dump_hdf5_validate(data, path, filename):
-    with h5py.File(path+filename, "a") as f:
+    with h5py.File(path + filename, "a") as f:
         for dataset, data_dict in data.items():
             for variable, value in data_dict.items():
                 try:
                     del f[f'{dataset}/{variable}']
-                    f.create_dataset(f'/{dataset}/{variable}', data = value)
+                    f.create_dataset(f'/{dataset}/{variable}', data=value)
                 except KeyError:
-                    f.create_dataset(f'/{dataset}/{variable}', data = value)
+                    f.create_dataset(f'/{dataset}/{variable}', data=value)
         f.close()
 
 
@@ -200,9 +202,8 @@ def load_pickle(path_to_pickle, filename):
     """
     with open(path_to_pickle + filename, 'rb') as f:
         data = pickle.load(f)
-        
 
-    return data       
+    return data
 
 
 def state_to_index(state):
@@ -241,7 +242,8 @@ def steering_vectors2d(direction, theta, N, lambda_):
     r[0, :] = np.linspace(0, (N - 1) * lambda_ / 2, N)
 
     if isinstance(theta, np.ndarray):
-        e = direction * np.matrix([np.cos(theta), np.sin(theta)]) # np.matrix laver måske problemer i forhold til numba @jit
+        e = direction * np.matrix(
+            [np.cos(theta), np.sin(theta)])  # np.matrix laver måske problemer i forhold til numba @jit
         result = np.exp(-2j * (np.pi / lambda_) * e.T @ r)
     elif isinstance(theta, float):
         e = direction * np.array([[np.cos(theta), np.sin(theta)]])
@@ -296,12 +298,13 @@ def codebook(N, k, lambda_):
         for n in range(2, 2 ** i + 1):
             codebook[(2 ** i) - 3 + n, :] = codeword * (
                     np.sqrt(N) * steering_vectors2d(1, np.arccos((((2 * (n - 1) / (2 ** i)) + 1) % 2) - 1), N,
-                                                    lambda_)) # TODO kig på denne funktion skal sqrt være 1/ ?
+                                                    lambda_))  # TODO kig på denne funktion skal sqrt være 1/ ?
 
     for idx, row in enumerate(codebook):
         codebook[idx, :] = row * 1 / np.linalg.norm(row)
 
     return codebook
+
 
 def codebook2(Nb, N):
     """
@@ -315,6 +318,7 @@ def codebook2(Nb, N):
         Cb[n, :] = ((1 / np.sqrt(N)) * np.exp(-1j * np.pi * np.arange(N) * ((2 * n - Nb) / (Nb))))
 
     return Cb
+
 
 def angle_to_beam(AoA, W):
     """
@@ -538,7 +542,7 @@ def create_pos_log(case, para, pos_log_name):
     print("Creating track")
 
     # Create the class
-    track = classes_multi_agent.Track(case=case, delta_t=sample_period, r_lim=r_lim)
+    track = classes.Track(case=case, delta_t=sample_period, r_lim=r_lim)
 
     pos_log_done = False
     while pos_log_done is False:
@@ -693,10 +697,13 @@ def get_H(Nr, Nt, Beta, alpha_rx, alpha_tx):
     H = H * np.sqrt(Nr * Nt)
     return H
 
+
 @njit()
 def jit_reward(W, F, H, P_t):
     R = np.zeros((len(F[:, 0]), len(W[:, 0])))
     for p in range(len(F[:, 0])):
         for q in range(len(W[:, 0])):
-            R[p, q] = np.absolute((np.dot(np.dot(np.conjugate(W[q, :]).T, H), F[p, :]) * np.sqrt(P_t)) ) ** 2
-    return R                                                                   # Noise should be here ^ in reality
+            R[p, q] = np.absolute((np.dot(np.dot(np.conjugate(W[q, :]).T, H), F[p, :]) * np.sqrt(P_t))) ** 2
+    return R  # Noise should be here ^ in reality
+
+

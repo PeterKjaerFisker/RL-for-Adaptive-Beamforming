@@ -2,7 +2,7 @@
 import json
 import sys
 
-import helpers_multi_agent
+import helpers
 
 
 cmd_input = sys.argv

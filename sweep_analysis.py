@@ -10,7 +10,7 @@ import sys
 import matplotlib.pyplot as plt
 import natsort as nt
 
-import helpers_multi_agent
+import helpers
 import plots
 import h5py
 

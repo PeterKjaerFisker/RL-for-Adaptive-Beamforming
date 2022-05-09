@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 import classes
 import helpers
+import agent_classes
 
 cmd_input = sys.argv
 if len(cmd_input) > 1:
@@ -21,7 +22,7 @@ if len(cmd_input) > 1:
     validate_alpha = float(sys.argv[4])
     validate_gamma = float(sys.argv[5])
 else:
-    CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
+    CHANNEL_SETTINGS = "pedestrian_LOS_2_users_20000_steps_01"
     AGENT_SETTINGS = "SARSA_TFFT_2-2-0-0-2-32_7000_2000"
     validate_eps = 1
     validate_alpha = 0.05
@@ -187,7 +188,7 @@ if __name__ == "__main__":
         for m in range(M):
             ori_discrete[m, :] = helpers.discrete_ori(Orientation[m][0][2, :], ori_res)
 
-        ori_discrete_validation = np.zeros([M, N])
+        ori_discrete_validation = np.zeros([M_validation, N_validation])
         for m in range(M_validation):
             ori_discrete_validation[m, :] = helpers.discrete_ori(Orientation_validation[m][0][2, :], ori_res)
     else:
@@ -198,7 +199,7 @@ if __name__ == "__main__":
         for m in range(M):
             dist_discrete[m, :] = helpers.discrete_dist(pos_log[m], dist_res, r_lim)
 
-        dist_discrete_validation = np.zeros([M, N])
+        dist_discrete_validation = np.zeros([M_validation, N_validation])
         for m in range(M_validation):
             dist_discrete_validation[m, :] = helpers.discrete_dist(pos_log_validation[m], dist_res, r_lim)
     else:
@@ -209,7 +210,7 @@ if __name__ == "__main__":
         for m in range(M):
             angle_discrete[m, :] = helpers.discrete_angle(pos_log[m], angle_res)
 
-        angle_discrete_validation = np.zeros([M, N])
+        angle_discrete_validation = np.zeros([M_validation, N_validation])
         for m in range(M_validation):
             angle_discrete_validation[m, :] = helpers.discrete_angle(pos_log_validation[m], angle_res)
     else:
@@ -237,7 +238,7 @@ if __name__ == "__main__":
     R_min_log_validation = np.zeros([Episodes_validation, chunksize])
     R_mean_log_validation = np.zeros([Episodes_validation, chunksize])
 
-    Agent = classes.Agent(action_space_r, action_space_t, eps=[f'{EPSILON_METHOD}', 0.05], alpha=["constant", 0.05])
+    Agent = agent_classes.Agent(action_space_r, action_space_t, eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
 
     print('Rewards for training are now calculated')
     reward_start = time()
@@ -268,12 +269,12 @@ if __name__ == "__main__":
         # TODO dette skal ikke blot være beams men én beam og et antal tidligere "retninger"
 
         if n_actions_r > 0:
-            State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r))]
+            State_tmp = [[tuple([x]) for x in np.random.randint(0, Nbeam_tot_r, n_actions_r)]]
         else:
             State_tmp = [list("N/A")]
 
         if n_actions_t > 0:
-            State_tmp.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t)))
+            State_tmp.append([tuple([x]) for x in np.random.randint(0, Nbeam_tot_t, n_actions_t)])
         else:
             State_tmp.append(["N/A"])
 
@@ -295,107 +296,59 @@ if __name__ == "__main__":
         State = classes.State(State_tmp, ORI, DIST, LOCATION, n_actions_r, n_actions_t)
 
         # Initiate the action
-        beam_nr = tuple((np.random.choice(action_space_r), np.random.choice(
-            action_space_t)))  # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
-        adj_action_index = tuple((np.random.randint(0, 6), np.random.randint(0,
-                                                                             6)))  # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
-
-        # TODO første action skal afhænge af initial state
+        previous_beam_nr, previous_action = Agent.e_greedy_adj(helpers.state_to_index(State.state),
+                                                               tuple([State.state[0][-1][0], State.state[1][-1][0]]),
+                                                               Nlr,
+                                                               Nlt)
 
         previous_state = State.state
-        previous_beam_nr = beam_nr
-
-        if ADJ:
-            previous_action = adj_action_index
-        else:
-            previous_action = beam_nr
 
         end = False
 
         Agent.reset_epsilon()
         # Run the episode
         for n in range(chunksize):
-
-            # Update the current state
-            # Check if the user terminal orientation is part of the state.
-            if ORI:
-                # Get the current discrete orientation of the user terminal
-                ori = int(ori_discrete[path_idx, data_idx + n])
-                # Check if current step is the last step in episode.
-                # If not the last step, the next orientation of the user terminal is assigned to a variable
-                if n < chunksize - 1:
-                    next_ori = int(ori_discrete[path_idx, data_idx + n + 1])
-            else:
-                ori = "N/A"
-                next_ori = "N/A"
-
-            if DIST or LOCATION:
-                dist = dist_discrete[path_idx, data_idx + n]
-                if n < chunksize - 1:
-                    next_dist = dist_discrete[path_idx, data_idx + n + 1]
-            else:
-                dist = "N/A"
-                next_dist = "N/A"
-
-            if LOCATION:
-                angle = angle_discrete[path_idx, data_idx + n]
-                if n < chunksize - 1:
-                    next_angle = angle_discrete[path_idx, data_idx + n + 1]
-            else:
-                angle = "N/A"
-                next_angle = "N/A"
-
             if n == chunksize - 1:
                 end = True
 
-            current_state_parameters = [dist, ori, angle]
+            # Update the current state
+            current_state_parameters = State.get_state_parameters(path_idx, data_idx + n, ori_discrete,
+                                                                  dist_discrete, angle_discrete)
+            State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
 
             # Calculate the action
-            if ADJ:
-                State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
-                beam_nr, adj_action_index = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr,
-                                                               Nlt)  # TODO måske ændre sidste output til "limiting factors"
-                action_index = adj_action_index
-            else:
-                State.state = State.build_state(previous_beam_nr, current_state_parameters)
-                beam_nr = Agent.e_greedy(helpers.state_to_index(State.state))
-                action_index = beam_nr
+            # TODO måske ændre sidste output til "limiting factors"
+            beam_nr, action = Agent.e_greedy_adj(helpers.state_to_index(State.state), previous_beam_nr, Nlr, Nlt)
 
             # Get reward from performing action
-
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr)
+            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr[0], beam_nr[1])
 
             # Update Q-table
-            if METHOD == "SIMPLE":
-                TD_error = Agent.update_simple(helpers.state_to_index(State.state), action_index, R)
-
-            elif METHOD == "SARSA":
+            if METHOD == "SARSA":
                 TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
                                            previous_action,
                                            R,
                                            helpers.state_to_index(State.state),
-                                           action_index,
+                                           action,
                                            end=end)
 
             elif METHOD == "Q-LEARNING":
-                if ADJ:  # Note that next_action here is a direction index and not a beam number
-                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt)
-                else:  # Note that next_action is a beam number and not a direction index
-                    next_action = Agent.greedy(helpers.state_to_index(State.state))
+                greedy_beam, greedy_action = Agent.greedy_adj(helpers.state_to_index(State.state), previous_beam_nr,
+                                                              Nlr, Nlt)
 
                 TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
                                            previous_action,
                                            R,
                                            helpers.state_to_index(State.state),
-                                           next_action,
+                                           greedy_action,
                                            end=end)
             else:
                 raise Exception("Method not recognized")
 
-            Agent.update_epsilon(n+1, 800, TD_error, helpers.state_to_index(previous_state))
+            Agent.update_epsilon(n + 1, 800, TD_error, helpers.state_to_index(previous_state))
 
-            action_log_r[episode, n] = action_index[0]
-            action_log_t[episode, n] = action_index[1]
+            action_log_r[episode, n] = action[0]
+            action_log_t[episode, n] = action[1]
             beam_log_r[episode, n] = beam_nr[0]
             beam_log_t[episode, n] = beam_nr[1]
             R_log[episode, n] = R
@@ -405,7 +358,7 @@ if __name__ == "__main__":
 
             previous_state = State.state
             previous_beam_nr = beam_nr
-            previous_action = action_index
+            previous_action = action
 
     # ------- Run agent on validation data -------
     print('Rewards for validation are now calculated')
@@ -440,12 +393,12 @@ if __name__ == "__main__":
         # TODO dette skal ikke blot være beams men én beam og et antal tidligere "retninger"
 
         if n_actions_r > 0:
-            State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r))]
+            State_tmp = [[tuple([x]) for x in np.random.randint(0, Nbeam_tot_r, n_actions_r)]]
         else:
             State_tmp = [list("N/A")]
 
         if n_actions_t > 0:
-            State_tmp.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t)))
+            State_tmp.append([tuple([x]) for x in np.random.randint(0, Nbeam_tot_t, n_actions_t)])
         else:
             State_tmp.append(["N/A"])
 
@@ -467,108 +420,63 @@ if __name__ == "__main__":
         State = classes.State(State_tmp, ORI, DIST, LOCATION, n_actions_r, n_actions_t)
 
         # Initiate the action
-        beam_nr = tuple((np.random.choice(action_space_r), np.random.choice(
-            action_space_t)))  # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
-        adj_action_index = tuple((np.random.randint(0, 6), np.random.randint(0,
-                                                                             6)))  # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
-
-        # TODO første action skal afhænge af initial state
+        previous_beam_nr, previous_action = Agent.e_greedy_adj(helpers.state_to_index(State.state),
+                                                               tuple([State.state[0][-1][0], State.state[1][-1][0]]),
+                                                               Nlr,
+                                                               Nlt)
 
         previous_state = State.state
-        previous_beam_nr = beam_nr
-
-        if ADJ:
-            previous_action = adj_action_index
-        else:
-            previous_action = beam_nr
 
         end = False
 
         Agent.reset_epsilon()
-
         # Run the episode
         for n in range(chunksize):
-
-            # Update the current state
-            # Check if the user terminal orientation is part of the state.
-            if ORI:
-                # Get the current discrete orientation of the user terminal
-                ori = int(ori_discrete_validation[path_idx, data_idx + n])
-                # Check if current step is the last step in episode.
-                # If not the last step, the next orientation of the user terminal is assigned to a variable
-                if n < chunksize - 1:
-                    next_ori = int(ori_discrete_validation[path_idx, data_idx + n + 1])
-            else:
-                ori = "N/A"
-                next_ori = "N/A"
-
-            if DIST or LOCATION:
-                dist = dist_discrete_validation[path_idx, data_idx + n]
-                if n < chunksize - 1:
-                    next_dist = dist_discrete_validation[path_idx, data_idx + n + 1]
-            else:
-                dist = "N/A"
-                next_dist = "N/A"
-
-            if LOCATION:
-                angle = angle_discrete_validation[path_idx, data_idx + n]
-                if n < chunksize - 1:
-                    next_angle = angle_discrete_validation[path_idx, data_idx + n + 1]
-            else:
-                angle = "N/A"
-                next_angle = "N/A"
-
             if n == chunksize - 1:
                 end = True
 
-            current_state_parameters = [dist, ori, angle]
+            # Update the current state
+            current_state_parameters = State.get_state_parameters(path_idx, data_idx + n,
+                                                                  ori_discrete_validation,
+                                                                  dist_discrete_validation,
+                                                                  angle_discrete_validation)
+
+            State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
 
             # Calculate the action
-            if ADJ:
-                State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
-                beam_nr, adj_action_index = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr,
-                                                               Nlt)  # TODO måske ændre sidste output til "limiting factors"
-                action_index = adj_action_index
-            else:
-                State.state = State.build_state(previous_beam_nr, current_state_parameters)
-                beam_nr = Agent.e_greedy(helpers.state_to_index(State.state))
-                action_index = beam_nr
+            # TODO måske ændre sidste output til "limiting factors"
+            beam_nr, action = Agent.e_greedy_adj(helpers.state_to_index(State.state), previous_beam_nr, Nlr, Nlt)
 
             # Get reward from performing action
 
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr)
+            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr[0], beam_nr[1])
 
             # Update Q-table
-            if METHOD == "SIMPLE":
-                Agent.update_simple(helpers.state_to_index(State.state), action_index, R)
-
-            elif METHOD == "SARSA":
-                Agent.update_TD(helpers.state_to_index(previous_state),
-                                previous_action,
-                                R,
-                                helpers.state_to_index(State.state),
-                                action_index,
-                                end=end)
+            if METHOD == "SARSA":
+                TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
+                                           previous_action,
+                                           R,
+                                           helpers.state_to_index(State.state),
+                                           action,
+                                           end=end)
 
             elif METHOD == "Q-LEARNING":
-                if ADJ:  # Note that next_action here is a direction index and not a beam number
-                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt)
-                else:  # Note that next_action is a beam number and not a direction index
-                    next_action = Agent.greedy(helpers.state_to_index(State.state))
+                greedy_beam, greedy_action = Agent.greedy_adj(helpers.state_to_index(State.state), previous_beam_nr,
+                                                              Nlr, Nlt)
 
-                Agent.update_TD(helpers.state_to_index(previous_state),
-                                previous_action,
-                                R,
-                                helpers.state_to_index(State.state),
-                                next_action,
-                                end=end)
+                TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
+                                           previous_action,
+                                           R,
+                                           helpers.state_to_index(State.state),
+                                           greedy_action,
+                                           end=end)
             else:
                 raise Exception("Method not recognized")
 
-            Agent.update_epsilon(n+1, 400, TD_error, helpers.state_to_index(previous_state))
+            Agent.update_epsilon(n + 1, 400, TD_error, helpers.state_to_index(previous_state))
 
-            action_log_r_validation[episode, n] = action_index[0]
-            action_log_t_validation[episode, n] = action_index[1]
+            action_log_r_validation[episode, n] = action[0]
+            action_log_t_validation[episode, n] = action[1]
             beam_log_r_validation[episode, n] = beam_nr[0]
             beam_log_t_validation[episode, n] = beam_nr[1]
             R_log_validation[episode, n] = R
@@ -578,7 +486,7 @@ if __name__ == "__main__":
 
             previous_state = State.state
             previous_beam_nr = beam_nr
-            previous_action = action_index
+            previous_action = action
 
     # %% Save pickle and hdf5
     data_reward = {

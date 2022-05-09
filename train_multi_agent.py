@@ -11,8 +11,8 @@ from time import time
 import numpy as np
 from tqdm import tqdm
 
-import classes_multi_agent
-import helpers_multi_agent
+import classes
+import helpers
 import agent_classes
 
 cmd_input = sys.argv
@@ -21,7 +21,7 @@ if len(cmd_input) > 1:
     AGENT_SETTINGS_R = sys.argv[2]
     AGENT_SETTINGS_T = sys.argv[3]
 else:
-    CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
+    CHANNEL_SETTINGS = "pedestrian_LOS_2_users_20000_steps_01"
     AGENT_SETTINGS_R = "Q-LEARNING_TTFT_2-0-1-8-2-32_7000_10000"
     AGENT_SETTINGS_T = "Q-LEARNING_TFFT_0-2-0-0-2-32_7000_10000"
 
@@ -97,8 +97,8 @@ if __name__ == "__main__":
     # ----------- Load the data -----------
     t_start = time()
     # Load the data
-    channel_par, pos_log = helpers_multi_agent.load_data(f"data_pos_{FILENAME}.mat",
-                                                         f"data_{FILENAME}")
+    channel_par, pos_log = helpers.load_data(f"data_pos_{FILENAME}.mat",
+                                             f"data_{FILENAME}")
     print(f"Took: {time() - t_start}", flush=True)
 
     # Re-affirm that "M" matches data
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     if CASE == 'pedestrian':
         # Add some random noise to the orientation to simulate a moving person
-        Orientation = helpers_multi_agent.noisy_ori(Orientation)
+        Orientation = helpers.noisy_ori(Orientation)
 
     # ----------- Prepare the simulation - Channel -----------
     print("Starts calculating", flush=True)
@@ -131,21 +131,21 @@ if __name__ == "__main__":
     AoA_Local = []
 
     # Calculate hierarchical-codebook - Transmitter
-    precoder_codebook = helpers_multi_agent.codebook(Nt, Nlt, lambda_)
-    # precoder_codebook = helpers_multi_agent.codebook2(16,32)
+    precoder_codebook = helpers.codebook(Nt, Nlt, lambda_)
+    # precoder_codebook = helpers.codebook2(16,32)
 
     # Calculate hierarchical-codebook - Receiver
-    combiner_codebook = helpers_multi_agent.codebook(Nr, Nlr, lambda_)
-    # combiner_codebook = helpers_multi_agent.codebook2(8,8)
+    combiner_codebook = helpers.codebook(Nr, Nlr, lambda_)
+    # combiner_codebook = helpers.codebook2(8,8)
 
     # Calculate the AoA in the local coordinate system of the user terminal
     for m in range(M):
-        AoA_Local.append(helpers_multi_agent.get_local_angle(AoA_Global[m][0], Orientation[m][0][2, :]))
+        AoA_Local.append(helpers.get_local_angle(AoA_Global[m][0], Orientation[m][0][2, :]))
 
     # ----------- Prepare the simulation - RL -----------
     # Create the Environment
-    Env = classes_multi_agent.Environment(combiner_codebook, precoder_codebook, Nt, Nr,
-                                          fc, P_t)
+    Env = classes.Environment(combiner_codebook, precoder_codebook, Nt, Nr,
+                              fc, P_t)
 
     # Initialize all possible actions for the Agent
     action_space_r = np.arange(Nbeam_tot_r)
@@ -162,42 +162,42 @@ if __name__ == "__main__":
     if ORI_r:
         ori_discrete_r = np.zeros([M, N])
         for m in range(M):
-            ori_discrete_r[m, :] = helpers_multi_agent.discrete_ori(Orientation[m][0][2, :], ori_res_r)
+            ori_discrete_r[m, :] = helpers.discrete_ori(Orientation[m][0][2, :], ori_res_r)
     else:
         ori_discrete_r = None
 
     if ORI_t:
         ori_discrete_t = np.zeros([M, N])
         for m in range(M):
-            ori_discrete_t[m, :] = helpers_multi_agent.discrete_ori(Orientation[m][0][2, :], ori_res_t)
+            ori_discrete_t[m, :] = helpers.discrete_ori(Orientation[m][0][2, :], ori_res_t)
     else:
         ori_discrete_t = None
 
     if DIST_r or LOCATION_r:
         dist_discrete_r = np.zeros([M, N])
         for m in range(M):
-            dist_discrete_r[m, :] = helpers_multi_agent.discrete_dist(pos_log[m], dist_res_r, r_lim)
+            dist_discrete_r[m, :] = helpers.discrete_dist(pos_log[m], dist_res_r, r_lim)
     else:
         dist_discrete_r = None
 
     if DIST_t or LOCATION_t:
         dist_discrete_t = np.zeros([M, N])
         for m in range(M):
-            dist_discrete_t[m, :] = helpers_multi_agent.discrete_dist(pos_log[m], dist_res_t, r_lim)
+            dist_discrete_t[m, :] = helpers.discrete_dist(pos_log[m], dist_res_t, r_lim)
     else:
         dist_discrete_t = None
 
     if LOCATION_r:
         angle_discrete_r = np.zeros([M, N])
         for m in range(M):
-            angle_discrete_r[m, :] = helpers_multi_agent.discrete_angle(pos_log[m], angle_res_r)
+            angle_discrete_r[m, :] = helpers.discrete_angle(pos_log[m], angle_res_r)
     else:
         angle_discrete_r = None
 
     if LOCATION_t:
         angle_discrete_t = np.zeros([M, N])
         for m in range(M):
-            angle_discrete_t[m, :] = helpers_multi_agent.discrete_angle(pos_log[m], angle_res_t)
+            angle_discrete_t[m, :] = helpers.discrete_angle(pos_log[m], angle_res_t)
     else:
         angle_discrete_t = None
 
@@ -213,9 +213,9 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent_r = agent_classes.MultiAgent(action_space_r, eps=0.05, alpha=0.05)
+    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='wolf', eps=0.05, alpha=0.05)
 
-    Agent_t = agent_classes.MultiAgent(action_space_t, eps=0.05, alpha=0.05)
+    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='wolf', eps=0.05, alpha=0.05)
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -297,15 +297,15 @@ if __name__ == "__main__":
         else:
             State_tmp_t.append(["N/A"])
 
-        State_r = classes_multi_agent.State(State_tmp_r, ORI_r, DIST_r, LOCATION_r, n_actions_r_r, n_actions_t_r)
-        State_t = classes_multi_agent.State(State_tmp_t, ORI_t, DIST_t, LOCATION_t, n_actions_r_t, n_actions_t_t)
+        State_r = classes.State(State_tmp_r, ORI_r, DIST_r, LOCATION_r, n_actions_r_r, n_actions_t_r)
+        State_t = classes.State(State_tmp_t, ORI_t, DIST_t, LOCATION_t, n_actions_r_t, n_actions_t_t)
 
         # Initiate the action
-        previous_beam_nr_r, previous_action_r = Agent_r.e_soft_adj(helpers_multi_agent.state_to_index(State_r.state),
+        previous_beam_nr_r, previous_action_r = Agent_r.e_soft_adj(helpers.state_to_index(State_r.state),
                                                                    State_r.state[0][-1],
                                                                    Nlr)
 
-        previous_beam_nr_t, previous_action_t = Agent_t.e_soft_adj(helpers_multi_agent.state_to_index(State_t.state),
+        previous_beam_nr_t, previous_action_t = Agent_t.e_soft_adj(helpers.state_to_index(State_t.state),
                                                                    State_t.state[1][-1],
                                                                    Nlt)
 
@@ -313,8 +313,8 @@ if __name__ == "__main__":
         # beam_nr_list_r, action_list_r = Agent_r.get_action_list_adj(State_r.state[0][-1][0], Nlr, Agent_r.action_space)
         # beam_nr_list_t, action_list_t = Agent_t.get_action_list_adj(State_t.state[1][-1][0], Nlt, Agent_t.action_space)
         # for action_r, action_t in zip(action_list_r, action_list_t):
-        #     Agent_r.Q[helpers_multi_agent.state_to_index(State_r.state), tuple([action_r])][2] = 0
-        #     Agent_t.Q[helpers_multi_agent.state_to_index(State_t.state), tuple([action_t])][2] = 0
+        #     Agent_r.Q[helpers.state_to_index(State_r.state), tuple([action_r])][2] = 0
+        #     Agent_t.Q[helpers.state_to_index(State_t.state), tuple([action_t])][2] = 0
 
         previous_state_r = State_r.state
         previous_state_t = State_t.state
@@ -323,75 +323,20 @@ if __name__ == "__main__":
         # Run the episode
         for n in range(chunksize):
 
-            # Update the current state
-            # Check if the user terminal orientation is part of the state.
-            if ORI_r:
-                # Get the current discrete orientation of the user terminal
-                ori_r = int(ori_discrete_r[path_idx, data_idx + n])
-                # Check if current step is the last step in episode.
-                # If not the last step, the next orientation of the user terminal is assigned to a variable
-                if n < chunksize - 1:
-                    next_ori_r = int(ori_discrete_r[path_idx, data_idx + n + 1])
-            else:
-                ori_r = "N/A"
-                next_ori_r = "N/A"
-
-            if DIST_r or LOCATION_r:
-                dist_r = dist_discrete_r[path_idx, data_idx + n]
-                if n < chunksize - 1:
-                    next_dist_r = dist_discrete_r[path_idx, data_idx + n + 1]
-            else:
-                dist_r = "N/A"
-                next_dist_r = "N/A"
-
-            if LOCATION_r:
-                angle_r = angle_discrete_r[path_idx, data_idx + n]
-                if n < chunksize - 1:
-                    next_angle_r = angle_discrete_r[path_idx, data_idx + n + 1]
-            else:
-                angle_r = "N/A"
-                next_angle_r = "N/A"
-
-            if ORI_t:
-                # Get the current discrete orientation of the user terminal
-                ori_t = int(ori_discrete_t[path_idx, data_idx + n])
-                # Check if current step is the last step in episode.
-                # If not the last step, the next orientation of the user terminal is assigned to a variable
-                if n < chunksize - 1:
-                    next_ori_t = int(ori_discrete_t[path_idx, data_idx + n + 1])
-            else:
-                ori_t = "N/A"
-                next_ori_t = "N/A"
-
-            if DIST_t or LOCATION_t:
-                dist_t = dist_discrete_t[path_idx, data_idx + n]
-                if n < chunksize - 1:
-                    next_dist_t = dist_discrete_t[path_idx, data_idx + n + 1]
-            else:
-                dist_t = "N/A"
-                next_dist_t = "N/A"
-
-            if LOCATION_t:
-                angle_t = angle_discrete_t[path_idx, data_idx + n]
-                if n < chunksize - 1:
-                    next_angle_t = angle_discrete_t[path_idx, data_idx + n + 1]
-            else:
-                angle_t = "N/A"
-                next_angle_t = "N/A"
-
             if n == chunksize - 1:
                 end = True
+            # Update the current state
 
-            current_state_parameters_r = [dist_r, ori_r, angle_r]
-            current_state_parameters_t = [dist_t, ori_t, angle_t]
-
-            # Calculate the action
-
+            current_state_parameters_r = State_r.get_state_parameters(path_idx, data_idx + n, ori_discrete_r,
+                                                                      dist_discrete_r, angle_discrete_r)
+            current_state_parameters_t = State_t.get_state_parameters(path_idx, data_idx + n, ori_discrete_t,
+                                                                      dist_discrete_t, angle_discrete_t)
             State_r.state = State_r.build_state(tuple([previous_beam_nr_r, previous_beam_nr_t]),
                                                 current_state_parameters_r,
                                                 tuple([previous_action_r, previous_action_t]))
 
-            beam_nr_r, action_r = Agent_r.e_soft_adj(helpers_multi_agent.state_to_index(State_r.state),
+            # Calculate the action
+            beam_nr_r, action_r = Agent_r.e_soft_adj(helpers.state_to_index(State_r.state),
                                                      previous_beam_nr_r,
                                                      Nlr)  # TODO måske ændre sidste output til "limiting factors"
 
@@ -399,7 +344,7 @@ if __name__ == "__main__":
                                                 current_state_parameters_t,
                                                 tuple([previous_action_r, previous_action_t]))
 
-            beam_nr_t, action_t = Agent_t.e_soft_adj(helpers_multi_agent.state_to_index(State_t.state),
+            beam_nr_t, action_t = Agent_t.e_soft_adj(helpers.state_to_index(State_t.state),
                                                      previous_beam_nr_t,
                                                      Nlt)  # TODO måske ændre sidste output til "limiting factors"
 
@@ -407,62 +352,56 @@ if __name__ == "__main__":
             R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr_r, beam_nr_t, P_n)
 
             # Update Q-table
-            if METHOD_r == "SIMPLE":
-                Agent_r.update_simple(helpers_multi_agent.state_to_index(State_r.state), action_r, R)
-
-            elif METHOD_r == "SARSA":
-                Agent_r.update_TD(helpers_multi_agent.state_to_index(previous_state_r),
+            if METHOD_r == "SARSA":
+                Agent_r.update_TD(helpers.state_to_index(previous_state_r),
                                   previous_action_r,
                                   R,
-                                  helpers_multi_agent.state_to_index(State_r.state),
+                                  helpers.state_to_index(State_r.state),
                                   action_r,
                                   end=end)
 
             elif METHOD_r == "Q-LEARNING":
                 greedy_beam_r, greedy_action_r = Agent_r.greedy_adj(
-                    helpers_multi_agent.state_to_index(State_r.state), previous_beam_nr_r, Nlr)
+                    helpers.state_to_index(State_r.state), previous_beam_nr_r, Nlr)
 
-                Agent_r.update_TD(helpers_multi_agent.state_to_index(previous_state_r),
+                Agent_r.update_TD(helpers.state_to_index(previous_state_r),
                                   previous_action_r,
                                   R,
-                                  helpers_multi_agent.state_to_index(State_r.state),
+                                  helpers.state_to_index(State_r.state),
                                   greedy_action_r,
                                   end=end)
 
                 if Agent_r.agent_type == 'wolf':
-                    Agent_r.update_WoLF_PHC_adj(helpers_multi_agent.state_to_index(previous_state_r),
-                                                helpers_multi_agent.state_to_index(previous_state_r)[0][-1],
+                    Agent_r.update_WoLF_PHC_adj(helpers.state_to_index(previous_state_r),
+                                                helpers.state_to_index(previous_state_r)[0][-1],
                                                 Nlr)
-
 
             else:
                 raise Exception("Method not recognized for r")
 
-            if METHOD_t == "SIMPLE":
-                Agent_t.update_simple(helpers_multi_agent.state_to_index(State_t.state), action_t, R)
-
-            elif METHOD_t == "SARSA":
-                Agent_t.update_TD(helpers_multi_agent.state_to_index(previous_state_t),
+            # Update Q-table
+            if METHOD_t == "SARSA":
+                Agent_t.update_TD(helpers.state_to_index(previous_state_t),
                                   previous_action_t,
                                   R,
-                                  helpers_multi_agent.state_to_index(State_t.state),
+                                  helpers.state_to_index(State_t.state),
                                   action_t,
                                   end=end)
 
             elif METHOD_t == "Q-LEARNING":  # Note that next_action here is a direction index and not a beam number
                 greedy_beam_t, greedy_action_t = Agent_t.greedy_adj(
-                    helpers_multi_agent.state_to_index(State_t.state), previous_beam_nr_t, Nlt)
+                    helpers.state_to_index(State_t.state), previous_beam_nr_t, Nlt)
 
-                Agent_t.update_TD(helpers_multi_agent.state_to_index(previous_state_t),
+                Agent_t.update_TD(helpers.state_to_index(previous_state_t),
                                   previous_action_t,
                                   R,
-                                  helpers_multi_agent.state_to_index(State_t.state),
+                                  helpers.state_to_index(State_t.state),
                                   greedy_action_t,
                                   end=end)
 
                 if Agent_t.agent_type == 'wolf':
-                    Agent_t.update_WoLF_PHC_adj(helpers_multi_agent.state_to_index(previous_state_t),
-                                                helpers_multi_agent.state_to_index(previous_state_t)[1][-1],
+                    Agent_t.update_WoLF_PHC_adj(helpers.state_to_index(previous_state_t),
+                                                helpers.state_to_index(previous_state_t)[1][-1],
                                                 Nlt)
 
             else:
@@ -497,7 +436,7 @@ if __name__ == "__main__":
     }
 
     data_agent = {
-        'Agent_r': Agent_r,  # TODO skal måske ikke kun være Agent_r, men også Agent_t
+        'Agent_r': Agent_r,
         'Agent_t': Agent_t,
         'agent_settings_r': agent_settings_r,
         'agent_settings_t': agent_settings_t,
@@ -506,17 +445,17 @@ if __name__ == "__main__":
 
     try:
         if "NLOS" in channel_settings["scenarios"][0]:
-            # helpers_multi_agent.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
-            helpers_multi_agent.dump_hdf5(data_reward, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
+            # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
         else:
-            # helpers_multi_agent.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-            helpers_multi_agent.dump_hdf5(data_reward, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
+            # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
     except OSError as e:
         print(e)
         print("Saving to root folder instead")
         if "NLOS" in channel_settings["scenarios"][0]:
-            # helpers_multi_agent.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
-            helpers_multi_agent.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
+            # helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
         else:
-            # helpers_multi_agent.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-            helpers_multi_agent.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
+            # helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')

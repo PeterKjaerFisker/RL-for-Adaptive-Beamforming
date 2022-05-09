@@ -8,7 +8,7 @@ from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
 
-import helpers_multi_agent
+import helpers
 
 
 # %% Track
@@ -433,15 +433,15 @@ class Environment():
                 Beta = self.Betas[path_idx][0][stepnr, :]
 
                 # Calculate steering vectors for transmitter and receiver
-                alpha_rx = helpers_multi_agent.steering_vectors2d(direction=-1, theta=self.AoA[path_idx][stepnr, :],
+                alpha_rx = helpers.steering_vectors2d(direction=-1, theta=self.AoA[path_idx][stepnr, :],
                                                       N=self.Nr, lambda_=self.lambda_)
-                alpha_tx = helpers_multi_agent.steering_vectors2d(direction=1, theta=self.AoD[path_idx][0][stepnr, :],
+                alpha_tx = helpers.steering_vectors2d(direction=1, theta=self.AoD[path_idx][0][stepnr, :],
                                                       N=self.Nt, lambda_=self.lambda_)
 
                 alpha_rx = alpha_rx.reshape((len(alpha_rx), 1, self.Nr))
                 alpha_tx = alpha_tx.reshape((len(alpha_tx), 1, self.Nt))
 
-                H = helpers_multi_agent.get_H(
+                H = helpers.get_H(
                     self.Nr,
                     self.Nt,
                     Beta,
@@ -449,7 +449,7 @@ class Environment():
                     alpha_tx)
 
 
-                R[path_idx, stepnr] = helpers_multi_agent.jit_reward(self.W, self.F, H, self.P_t)
+                R[path_idx, stepnr] = helpers.jit_reward(self.W, self.F, H, self.P_t)
                 
         self.reward_matrix = R
 
@@ -610,362 +610,21 @@ class State:
 
         return [state_r, state_t, state_d, state_o, state_deg]
 
-
-# %% Agent Class
-class Agent:
-    def __init__(self, action_space_r, action_space_t, alpha=["constant", 0.7], eps=["constant", 0.05], gamma=0.7,
-                 c=200):
-        """
-        Initiate a reinforcement learning agent
-
-        Parameters
-        ----------
-        action_space : Array
-            All possible actions
-        alpha : Float, optional
-            Learning rate, options are 'constant' and '1/n'. The default is ["constant", 0.7].
-        eps : Float, optional
-            Probability of choosing random action for epsilon greedy policy. The default is 0.1.
-        gamma : Float, optional
-            Forgetting factor. The default is 0.7.
-        c : Float, optional
-            c value for UCB, balances exploration. The default is 200.
-
-        Returns
-        -------
-        None.
-
-        """
-        self.action_space_r = action_space_r  # Number of beam directions for receiver
-        self.action_space_t = action_space_t  # Number of beam directions for transmitter
-        self.alpha_method = alpha[0]
-        self.alpha = alpha[1]
-
-        self.eps_method = eps[0]
-        self.eps = eps[1]
-        self.eps_table = defaultdict(self._initiate_dict(1))
-        self.delta = 1 / 5  # The inverse of the expected amount of actions in any state. For adaptive epsilon
-
-        self.gamma = gamma
-        self.c = c
-        self.Q = defaultdict(self._initiate_dict(0.001))
-        self.accuracy = np.zeros(1)
-
-    def update_epsilon(self, timestep, weight, td_error, state):
-
-        if self.eps_method == "constant":
-            pass
-        elif self.eps_method == "decaying":
-            self.eps = np.exp(-timestep / weight)
-        elif self.eps_method == "adaptive":
-            ratio = (1 - np.exp(-np.abs(self.alpha * td_error) / weight)) / (
-                    1 + np.exp(-np.abs(self.alpha * td_error) / weight))
-            self.eps_table[state] = self.delta * ratio + (1 - self.delta) * self.eps_table[state]
-
-    def reset_epsilon(self):
-        if self.eps_method == "constant":
-            pass
-        elif self.eps_method == "decaying":
-            self.eps = 1
-        elif self.eps_method == "adaptive":
-            self.eps_table = defaultdict(self._initiate_dict(1))
-
-    def _initiate_dict(self, value1, value2=0):
-        """
-        Small function used when initiating the dicts.
-        For the alpha dict, value1 is alphas starting value.
-        Value2 should be set to 0 as it is used to log the number of times it has been used.
-
-        Parameters
-        ----------
-        value1 : FLOAT
-            First value in the array.
-        value2 : FLOAT, optional
-            Second value in the array. The default is 0.
-
-        Returns
-        -------
-        TYPE
-            An iterative type which defaultdict can use to set starting values.
-
-        """
-        return lambda: [value1, value2]
-
-    # def _update_alpha(self, state, action):
-    #     """
-    #     Updates the alpha values if method "1/n" has been chosen
-    #
-    #     Parameters
-    #     ----------
-    #     state : ARRAY
-    #         Current position (x,y).
-    #     action : INT
-    #         Current action taken.
-    #
-    #     Returns
-    #     -------
-    #     None.
-    #
-    #     """
-    #     if self.alpha_method == "1/n":
-    #         if self.alpha[state, action][1] == 0:
-    #             self.alpha[state, action] = [self.alpha_start * (1 / 1),
-    #                                          1 + self.alpha[state, action][1]]
-    #         else:
-    #             self.alpha[state, action] = [self.alpha_start * (1 / self.alpha[state, action][1]),
-    #                                          1 + self.alpha[state, action][1]]
-
-    def greedy(self, state):
-        """
-        Calculate which action is expected to be the most optimum.
-
-        Parameters
-        ----------
-        state : ARRAY
-            The current state
-
-        Returns
-        -------
-        INT
-            The chosen action.
-
-        """
-        beam_dir_r = np.random.choice(self.action_space_r)
-        beam_dir_t = np.random.choice(self.action_space_t)
-        beam_dirs = tuple((beam_dir_r, beam_dir_t))
-        r_est = self.Q[state, beam_dirs][0]
-
-        for action_r in self.action_space_r:
-            for action_t in self.action_space_t:
-                if self.Q[state, tuple((action_r, action_t))][0] > r_est:
-                    beam_dirs = tuple((action_r, action_t))
-                    r_est = self.Q[state, tuple((action_r, action_t))][0]
-
-        return beam_dirs
-
-    def e_greedy(self, state):
-        """
-        Return a random action in the action space based on the epsilon value.
-        Else return the same value as the greedy function
-
-        Parameters
-        ----------
-        state : ARRAY
-            Which position on the grid you are standing on (x,y).
-
-        Returns
-        -------
-        INT
-            The chosen action.
-
-        """
-        if self.eps_method == "adaptive":
-            epsilon = self.eps_table[state]
+    def get_state_parameters(self, path_idx, step_idx, ori_data, dist_data, angle_data):
+        if self.orientation_flag:
+            # Get the current discrete orientation of the user terminal
+            ori = int(ori_data[path_idx, step_idx])
         else:
-            epsilon = self.eps
+            ori = "N/A"
 
-        if np.random.random() > epsilon:
-            return self.greedy(state)
+        if self.distance_flag or self.location_flag:
+            dist = dist_data[path_idx, step_idx]
         else:
-            return tuple((np.random.choice(self.action_space_r), np.random.choice(self.action_space_t)))
+            dist = "N/A"
 
-    def get_action_list_adj(self, last_action, Nlayers, action_space):
-        """
-        Calculate the beam numbers of adjecent beams
-
-        Parameters
-        ----------
-        last_action : Int
-            The beam number of the current beam
-        Nlayers : Int
-            Number of layers, for restricting avaliable actions
-
-        Returns
-        -------
-        actions : List
-            List of beam numbers for adjecent beams
-        dir_list : Array
-            Array of directions avaliable at current beam
-
-        """
-        current_layer = int(np.floor(np.log2(last_action + 2)))  # Wrap around for left/right
-
-        # Check if the codeword to the "right" is still in the same layer
-        if current_layer == int(np.floor(np.log2(last_action + 3))):
-            action_Right = last_action + 1
+        if self.location_flag:
+            angle = angle_data[path_idx, step_idx]
         else:
-            action_Right = int((last_action - 1) / 2)
+            angle = "N/A"
 
-        # Check if the codeword to the "left" is still in the same layer
-        if current_layer == int(np.floor(np.log2(last_action + 1))):
-            action_Left = last_action - 1
-        else:
-            action_Left = int((last_action * 2) + 1)
-
-        # Limits the agent to taking appropriate actions
-        actions = [action_space[last_action],  # Stay
-                   action_space[action_Right],  # Right
-                   action_space[action_Left]]  # Left
-
-        # Check if current layer is between the bottom and top layers
-        if current_layer != 1 and current_layer != Nlayers:
-            actions.append(action_space[int(np.floor((last_action - 2) / 2))])  # Down
-            actions.append(
-                action_space[int((last_action * 2) + 3)])  # TODO Up Right TODO måske byt om så ting er i rækkefølge
-            actions.append(action_space[int((last_action * 2) + 2)])  # Up Left
-
-            dir_list = [0, 1, 2, 3, 4, 5]
-
-        elif current_layer != 1:  # Check if on bottom layer
-            actions.append(action_space[int(np.floor((last_action - 2) / 2))])  # Down
-
-            dir_list = [0, 1, 2, 3]
-
-        else:  # Check if on uppermost layer
-            actions.append(action_space[int((last_action * 2) + 3)])  # Up Right
-            actions.append(action_space[int((last_action * 2) + 2)])  # Up Left
-
-            dir_list = [0, 1, 2, 4, 5]
-
-        return actions, dir_list
-
-    def greedy_adj(self, state, last_action, Nlr, Nlt):
-        """
-        Calculates the optimal action according to the greedy policy
-        when actions are restricted to choosing adjecent beams
-
-        Parameters
-        ----------
-        state : Array
-            The state
-        last_action : Int
-            The number of the last chosen beam, to calculate adjecent beams
-        Nlayers : Int
-            Numbers of layers in the hierarchical codebook, to calculate when to limit actions
-
-        Returns
-        -------
-        next_action : Int
-            Beam number the action corresponds to
-        next_dir : Int
-            Which direction was chosen
-
-        """
-
-        actions_r, dir_list_r = self.get_action_list_adj(last_action[0], Nlr, self.action_space_r)
-        actions_t, dir_list_t = self.get_action_list_adj(last_action[1], Nlt, self.action_space_t)
-
-        choice_r = np.random.randint(0, len(dir_list_r))
-        choice_t = np.random.randint(0, len(dir_list_t))
-        next_action = tuple((actions_r[choice_r], actions_t[choice_t]))
-        next_dir = tuple((dir_list_r[choice_r], dir_list_t[choice_t]))
-        r_est = self.Q[state, next_dir][0]
-
-        for idx_r, last_dir_r in enumerate(dir_list_r):
-            for idx_t, last_dir_t in enumerate(dir_list_t):
-                if self.Q[state, tuple((last_dir_r, last_dir_t))][0] > r_est:
-                    next_action = tuple((actions_r[idx_r], actions_t[idx_t]))
-                    next_dir = tuple((last_dir_r, last_dir_t))
-                    r_est = self.Q[state, tuple((last_dir_r, last_dir_t))][0]
-
-        return next_action, next_dir
-
-    def e_greedy_adj(self, state, last_action, Nlr, Nlt):
-        """
-        Calculates the optimal action according to the epsilon greedy policy
-        when actions are restricted to choosing adjecent beams
-
-        Parameters
-        ----------
-        state : Array
-            The state
-        last_action : Int
-            The number of the last chosen beam, to calculate adjecent beams
-        Nlayers : Int
-            Numbers of layers in the hierarchical codebook, to calculate when to limit actions
-
-        Returns
-        -------
-        next_action : Int
-            Beam number the action corresponds to
-        next_dir : Int
-            Which direction was chosen
-
-        """
-        if self.eps_method == "adaptive":
-            epsilon = self.eps_table[state]
-        else:
-            epsilon = self.eps
-
-        if np.random.random() > epsilon:
-            next_action, next_dir = self.greedy_adj(state, last_action, Nlr, Nlt)
-        else:
-            actions_r, dir_list_r = self.get_action_list_adj(last_action[0], Nlr, self.action_space_r)
-            actions_t, dir_list_t = self.get_action_list_adj(last_action[1], Nlt, self.action_space_t)
-
-            choice_r = np.random.randint(0, len(dir_list_r))
-            choice_t = np.random.randint(0, len(dir_list_t))
-
-            next_action = tuple((actions_r[choice_r], actions_t[choice_t]))
-            next_dir = tuple((dir_list_r[choice_r], dir_list_t[choice_t]))
-
-        return next_action, next_dir
-
-    def update_simple(self, state, action, reward):
-        """
-        Update the Q table for the given state and action based on equation (2.5)
-        in the book:
-        Reinforcement Learning - An introduction.
-        Second edition by Richard S. Sutton and Andrew G. Barto
-
-        Parameters
-        ----------
-        state : ARRAY
-            Which position on the grid you are standing on (x,y).
-        action : INT
-            The action you are taking.
-        reward : MATRIX
-            The reward matrix.
-
-        Returns
-        -------
-        None.
-
-        """
-        TD_error = (reward - self.Q[state, action][0])
-        self.Q[state, action] = [
-            (self.Q[state, action][0] + self.alpha * (reward - self.Q[state, action][0])),
-            self.Q[state, action][1] + 1]
-        return TD_error
-
-    def update_TD(self, state, action, R, next_state, next_action, end=False):
-        """
-        Update the Q table for the given state and action based on TD(0).
-        Based on the book:
-        Reinforcement Learning - An introduction.
-        Second edition by Richard S. Sutton and Andrew G. Barto
-        Parameters
-        ----------
-        State : State object
-        action : The action (beam number) chosen based on the current state
-        R : The reward
-        next_state :
-        next_action :
-        end :
-
-        Returns
-        -------
-
-        """
-        next_state = helpers.state_to_index(next_state)
-        if end is False:
-            next_Q = self.Q[next_state, next_action][0]
-        else:
-            next_Q = 0
-
-        TD_error = (R + self.gamma * next_Q - self.Q[state, action][0])
-
-        self.Q[state, action] = [
-            self.Q[state, action][0] + self.alpha * (R + self.gamma * next_Q - self.Q[state, action][0]),
-            self.Q[state, action][1] + 1]
-        return TD_error
+        return [dist, ori, angle]

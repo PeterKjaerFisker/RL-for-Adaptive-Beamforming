@@ -48,6 +48,8 @@ if __name__ == "__main__":
 
     # ----------- Reinforcement Learning Parameters -----------
     METHOD = agent_settings["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
+    EPSILON_METHOD = 'constant'
+
     ADJ = agent_settings["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
     ORI = agent_settings["ORI"]  # Include the User Terminal orientation in the state
     DIST = agent_settings["DIST"]  # Include the distance between User Terminal and Base Station in the state
@@ -165,7 +167,7 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent = classes.Agent(action_space_r, action_space_t, eps=0.05, alpha=["constant", 0.05])
+    Agent = classes.Agent(action_space_r, action_space_t, eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -196,12 +198,12 @@ if __name__ == "__main__":
         # TODO dette skal ikke blot være beams men én beam og et antal tidligere "retninger"
 
         if n_actions_r > 0:
-            State_tmp = [list(np.random.randint(0, Nbeam_tot_r, n_actions_r))]
+            State_tmp = [[tuple([x]) for x in np.random.randint(0, Nbeam_tot_r, n_actions_r)]]
         else:
             State_tmp = [list("N/A")]
 
         if n_actions_t > 0:
-            State_tmp.append(list(np.random.randint(0, Nbeam_tot_t, n_actions_t)))
+            State_tmp.append([tuple([x]) for x in np.random.randint(0, Nbeam_tot_t, n_actions_t)])
         else:
             State_tmp.append(["N/A"])
 
@@ -223,22 +225,16 @@ if __name__ == "__main__":
         State = classes.State(State_tmp, ORI, DIST, LOCATION, n_actions_r, n_actions_t)
 
         # Initiate the action
-        beam_nr = tuple((np.random.choice(action_space_r), np.random.choice(
-            action_space_t)))  # TODO ændre action, i ADJ til at være retningen man går og ikke beam nr.
-        adj_action_index = tuple((np.random.randint(0, 6), np.random.randint(0,
-                                                                             6)))  # TODO måske tilføj en seperat værdi der er beam nr. der ikke nødvendigivis er den del af state
-
-        # TODO første action skal afhænge af initial state
+        previous_beam_nr, previous_action = Agent.e_greedy_adj(helpers.state_to_index(State.state),
+                                                               tuple([State.state[0][-1], State.state[1][-1]]),
+                                                               Nlr,
+                                                               Nlt)
 
         previous_state = State.state
-        previous_beam_nr = beam_nr
-
-        if ADJ:
-            previous_action = adj_action_index
-        else:
-            previous_action = beam_nr
 
         end = False
+
+        Agent.reset_epsilon()
         # Run the episode
         for n in range(chunksize):
 
@@ -277,49 +273,40 @@ if __name__ == "__main__":
             current_state_parameters = [dist, ori, angle]
 
             # Calculate the action
-            if ADJ:
-                State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
-                beam_nr, adj_action_index = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr,
-                                                               Nlt)  # TODO måske ændre sidste output til "limiting factors"
-                action_index = adj_action_index
-            else:
-                State.state = State.build_state(previous_beam_nr, current_state_parameters)
-                beam_nr = Agent.e_greedy(helpers.state_to_index(State.state))
-                action_index = beam_nr
+            State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
+
+            # TODO måske ændre sidste output til "limiting factors"
+            beam_nr, action = Agent.e_greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt)
 
             # Get reward from performing action
 
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n+data_idx, beam_nr)
+            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr)
 
             # Update Q-table
-            if METHOD == "SIMPLE":
-                Agent.update_simple(helpers.state_to_index(State.state), action_index, R)
-
-            elif METHOD == "SARSA":
-                Agent.update_TD(helpers.state_to_index(previous_state),
+            if METHOD == "SARSA":
+                TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
                                 previous_action,
                                 R,
                                 helpers.state_to_index(State.state),
-                                action_index,
+                                action,
                                 end=end)
 
             elif METHOD == "Q-LEARNING":
-                if ADJ:  # Note that next_action here is a direction index and not a beam number
-                    next_beam, next_action = Agent.greedy_adj(helpers.state_to_index(State.state), beam_nr, Nlr, Nlt)
-                else:  # Note that next_action is a beam number and not a direction index
-                    next_action = Agent.greedy(helpers.state_to_index(State.state))
+                greedy_beam, greedy_action = Agent.greedy_adj(helpers.state_to_index(State.state), previous_beam_nr, Nlr, Nlt)
 
-                Agent.update_TD(helpers.state_to_index(previous_state),
+                TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
                                 previous_action,
                                 R,
                                 helpers.state_to_index(State.state),
-                                next_action,
+                                greedy_action,
                                 end=end)
             else:
                 raise Exception("Method not recognized")
 
-            action_log_r[episode, n] = action_index[0]
-            action_log_t[episode, n] = action_index[1]
+            Agent.update_epsilon(n + 1, 800, TD_error, helpers.state_to_index(previous_state))
+
+            action_log_r[episode, n] = action[0]
+            action_log_t[episode, n] = action[1]
             beam_log_r[episode, n] = beam_nr[0]
             beam_log_t[episode, n] = beam_nr[1]
             R_log[episode, n] = R
@@ -329,7 +316,7 @@ if __name__ == "__main__":
 
             previous_state = State.state
             previous_beam_nr = beam_nr
-            previous_action = action_index
+            previous_action = action
 
     # %% Save pickle and hdf5
     data_reward = {
@@ -342,11 +329,11 @@ if __name__ == "__main__":
         'beam_log_r': beam_log_r,
         'beam_log_t': beam_log_t
     }
-    
+
     data_agent = {
-    'Agent': Agent,
-    'agent_settings': agent_settings,
-    'channel_settings': channel_settings,
+        'Agent': Agent,
+        'agent_settings': agent_settings,
+        'channel_settings': channel_settings,
     }
 
     try:
@@ -365,8 +352,3 @@ if __name__ == "__main__":
         else:
             helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
             # helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-
-    
-            
-            
-            

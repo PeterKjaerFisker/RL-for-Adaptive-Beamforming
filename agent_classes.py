@@ -3,12 +3,12 @@ from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
 
-import helpers_multi_agent
+import helpers
 
 
 # %% Multi Agent Class
 class MultiAgent:
-    def __init__(self, action_space, agent_type='naive',  alpha=0.7, eps=0.1, gamma=0.7):
+    def __init__(self, action_space, agent_type='naive', alpha=0.7, eps=0.1, gamma=0.7):
         """
         Initiate a reinforcement learning agent
 
@@ -63,7 +63,6 @@ class MultiAgent:
             return lambda: [value_est, np.uint16(visit_count), policy_prob, exp_policy_prob]
         else:
             return lambda: [value_est, np.uint16(visit_count)]
-
 
     def get_action_list_adj(self, current_beam_nr, Nlayers, action_space):
         """
@@ -255,6 +254,7 @@ class MultiAgent:
 
         return next_beam, next_action
 
+
     def update_WoLF_PHC_adj(self, state, current_beam_nr, Nl):
 
         beam_nr_list, action_list = self.get_action_list_adj(current_beam_nr[0], Nl, self.action_space)
@@ -263,11 +263,13 @@ class MultiAgent:
         greedy_action = action_list[choice]
         r_est = self.Q[state, tuple([greedy_action])][0]
         state_counter = 0
+
         for idx, action in enumerate(action_list):
             state_counter += self.Q[state, tuple([action])][1]
-            if self.Q[state, tuple([action])][0] > r_est:
+            current_est = self.Q[state, tuple([action])][0]
+            if current_est > r_est:
                 greedy_action = action
-                r_est = self.Q[state, tuple([action])][0]
+                r_est = current_est
 
         # Update the expected policy probability for the state-action pair and Determine which learning rate to use
         temp1 = 0
@@ -317,7 +319,7 @@ class MultiAgent:
         -------
 
         """
-        next_state = helpers_multi_agent.state_to_index(next_state)
+        next_state = helpers.state_to_index(next_state)
         if end is False:
             next_Q = self.Q[next_state, next_action][0]
         else:
@@ -327,9 +329,10 @@ class MultiAgent:
         self.Q[state, action][1] += 1
 
 
+
 # %% Agent Class
 class Agent:
-    def __init__(self, action_space, alpha=0.7, eps=0.1, gamma=0.7):
+    def __init__(self, action_space_r, action_space_t, alpha=0.7, eps=["constant", 0.05], gamma=0.7):
         """
         Initiate a reinforcement learning agent
 
@@ -351,16 +354,36 @@ class Agent:
         None.
 
         """
-        # self.action_space_r = action_space_r  # Number of beam directions for receiver
-        # self.action_space_t = action_space_t  # Number of beam directions for transmitter
-        self.action_space = action_space
-
+        self.action_space_r = action_space_r  # Number of beam directions for receiver
+        self.action_space_t = action_space_t  # Number of beam directions for transmitter
         self.alpha = alpha
-        self.eps = eps
-        self.gamma = gamma
 
+        self.eps_method = eps[0]
+        self.eps = eps[1]
+        self.eps_table = defaultdict(self._initiate_dict(1))
+        self.delta = 1 / 5  # The inverse of the expected amount of actions in any state. For adaptive epsilon
+
+        self.gamma = gamma
         self.Q = defaultdict(self._initiate_dict(0.001))
 
+    def update_epsilon(self, timestep, weight, td_error, state):
+
+        if self.eps_method == "constant":
+            pass
+        elif self.eps_method == "decaying":
+            self.eps = np.exp(-timestep / weight)
+        elif self.eps_method == "adaptive":
+            ratio = (1 - np.exp(-np.abs(self.alpha * td_error) / weight)) / (
+                    1 + np.exp(-np.abs(self.alpha * td_error) / weight))
+            self.eps_table[state] = self.delta * ratio + (1 - self.delta) * self.eps_table[state]
+
+    def reset_epsilon(self):
+        if self.eps_method == "constant":
+            pass
+        elif self.eps_method == "decaying":
+            self.eps = 1
+        elif self.eps_method == "adaptive":
+            self.eps_table = defaultdict(self._initiate_dict(1))
 
     def _initiate_dict(self, value1, value2=0):
         """
@@ -443,7 +466,7 @@ class Agent:
 
         return beam_nr_list, action_list
 
-    def greedy_adj(self, state, current_beam_nr, Nl):
+    def greedy_adj(self, state, current_beam_nr, Nlr, Nlt):
         """
         Calculates the optimal action according to the greedy policy
         when actions are restricted to choosing adjecent beams
@@ -466,33 +489,26 @@ class Agent:
 
         """
 
-        # actions_r, dir_list_r = self.get_action_list_adj(last_action[0], Nlr, self.action_space_r)
-        # actions_t, dir_list_t = self.get_action_list_adj(last_action[1], Nlt, self.action_space_t)
-        beam_nr_list, action_list = self.get_action_list_adj(current_beam_nr[0], Nl, self.action_space)
+        beam_nr_list_r, action_list_r = self.get_action_list_adj(current_beam_nr[0], Nlr, self.action_space_r)
+        beam_nr_list_t, action_list_t = self.get_action_list_adj(current_beam_nr[1], Nlt, self.action_space_t)
 
-        # choice_r = np.random.randint(0, len(dir_list_r))
-        # choice_t = np.random.randint(0, len(dir_list_t))
-        choice = np.random.randint(0, len(action_list))
-        next_beam = tuple([beam_nr_list[choice]])
-        next_action = tuple([action_list[choice]])
+        choice_r = np.random.randint(0, len(action_list_r))
+        choice_t = np.random.randint(0, len(action_list_t))
+
+        next_beam = tuple((beam_nr_list_r[choice_r], beam_nr_list_t[choice_t]))
+        next_action = tuple((action_list_r[choice_r], action_list_t[choice_t]))
         r_est = self.Q[state, next_action][0]
 
-        # for idx_r, last_dir_r in enumerate(dir_list_r):
-        #     for idx_t, last_dir_t in enumerate(dir_list_t):
-        #         if self.Q[state, tuple((last_dir_r, last_dir_t))][0] > r_est:
-        #             next_action = tuple((actions_r[idx_r], actions_t[idx_t]))
-        #             next_dir = tuple((last_dir_r, last_dir_t))
-        #             r_est = self.Q[state, tuple((last_dir_r, last_dir_t))][0]
-
-        for idx, last_action in enumerate(action_list):
-            if self.Q[state, tuple([last_action])][0] > r_est:
-                next_beam = tuple([beam_nr_list[idx]])
-                next_action = tuple([last_action])
-                r_est = self.Q[state, tuple([last_action])][0]
+        for idx_r, action_r in enumerate(action_list_r):
+            for idx_t, action_t in enumerate(action_list_t):
+                if self.Q[state, tuple((action_r, action_t))][0] > r_est:
+                    next_beam = tuple((beam_nr_list_r[idx_r], beam_nr_list_t[idx_t]))
+                    next_action = tuple((action_r, action_t))
+                    r_est = self.Q[state, tuple((action_r, action_t))][0]
 
         return next_beam, next_action
 
-    def e_greedy_adj(self, state, current_beam_nr, Nl):
+    def e_greedy_adj(self, state, current_beam_nr, Nlr, Nlt):
         """
         Calculates the optimal action according to the epsilon greedy policy
         when actions are restricted to choosing adjecent beams
@@ -514,19 +530,22 @@ class Agent:
             Which direction was chosen
 
         """
-        if np.random.random() > self.eps:
-            next_beam, next_action = self.greedy_adj(state, current_beam_nr, Nl)
+        if self.eps_method == "adaptive":
+            epsilon = self.eps_table[state]
         else:
-            # actions_r, dir_list_r = self.get_action_list_adj(last_action[0], Nlr, self.action_space_r)
-            # actions_t, dir_list_t = self.get_action_list_adj(last_action[1], Nlt, self.action_space_t)
-            beam_nr_list, action_list = self.get_action_list_adj(current_beam_nr[0], Nl, self.action_space)
+            epsilon = self.eps
 
-            # choice_r = np.random.randint(0, len(dir_list_r))
-            # choice_t = np.random.randint(0, len(dir_list_t))
-            choice = np.random.randint(0, len(action_list))
+        if np.random.random() > epsilon:
+            next_beam, next_action = self.greedy_adj(state, current_beam_nr, Nlr, Nlt)
+        else:
+            beam_nr_list_r, action_list_r = self.get_action_list_adj(current_beam_nr[0], Nlr, self.action_space_r)
+            beam_nr_list_t, action_list_t = self.get_action_list_adj(current_beam_nr[1], Nlt, self.action_space_t)
 
-            next_beam = tuple([beam_nr_list[choice]])
-            next_action = tuple([action_list[choice]])
+            choice_r = np.random.randint(0, len(action_list_r))
+            choice_t = np.random.randint(0, len(action_list_t))
+
+            next_beam = tuple((beam_nr_list_r[choice_r], beam_nr_list_t[choice_t]))
+            next_action = tuple((action_list_r[choice_r], action_list_t[choice_t]))
 
         return next_beam, next_action
 
@@ -549,11 +568,16 @@ class Agent:
         -------
 
         """
-        next_state = helpers_multi_agent.state_to_index(next_state)
+        next_state = helpers.state_to_index(next_state)
         if end is False:
             next_Q = self.Q[next_state, next_action][0]
         else:
             next_Q = 0
 
+        TD_error = (R + self.gamma * next_Q - self.Q[state, action][0])
+
         self.Q[state, action][0] += self.alpha * (R + self.gamma * next_Q - self.Q[state, action][0])
         self.Q[state, action][1] += 1
+
+
+        return TD_error

@@ -7,8 +7,8 @@ import numpy as np
 from tqdm import tqdm
 from collections import defaultdict
 
-import classes_multi_agent
-import helpers_multi_agent
+import classes
+import helpers
 
 # %% main
 if __name__ == "__main__":
