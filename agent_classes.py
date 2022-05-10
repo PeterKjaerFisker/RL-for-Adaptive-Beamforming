@@ -37,6 +37,7 @@ class MultiAgent:
         self.gamma = gamma
 
         self.Q = defaultdict(self._initiate_dict(0.001))
+        self.state_counter = defaultdict(lambda: 0)
 
         self.delta_w = 0.15
         self.delta_l = 0.60
@@ -254,7 +255,6 @@ class MultiAgent:
 
         return next_beam, next_action
 
-
     def update_WoLF_PHC_adj(self, state, current_beam_nr, Nl):
 
         beam_nr_list, action_list = self.get_action_list_adj(current_beam_nr[0], Nl, self.action_space)
@@ -262,43 +262,61 @@ class MultiAgent:
         choice = np.random.randint(0, len(action_list))
         greedy_action = action_list[choice]
         r_est = self.Q[state, tuple([greedy_action])][0]
-        state_counter = 0
+        state_counter = self.state_counter[state]
 
+        temp1 = 0
+        temp2 = 0
         for idx, action in enumerate(action_list):
-            state_counter += self.Q[state, tuple([action])][1]
             current_est = self.Q[state, tuple([action])][0]
+            # Update the expected policy probability for the state-action pair and Determine which learning rate to use
+            self.Q[state, tuple([action])][3] += (self.Q[state, tuple([action])][2] -
+                                                  self.Q[state, tuple([action])][3]) / state_counter
+            temp1 += self.Q[state, tuple([action])][2] * current_est
+            temp2 += self.Q[state, tuple([action])][3] * current_est
+
             if current_est > r_est:
                 greedy_action = action
                 r_est = current_est
 
         # Update the expected policy probability for the state-action pair and Determine which learning rate to use
-        temp1 = 0
-        temp2 = 0
-        for action in action_list:
-            self.Q[state, tuple([action])][3] += (self.Q[state, tuple([action])][2] -
-                                                  self.Q[state, tuple([action])][3]) / state_counter
-            temp1 += self.Q[state, tuple([action])][2] * self.Q[state, tuple([action])][0]
-            temp2 += self.Q[state, tuple([action])][3] * self.Q[state, tuple([action])][0]
+        # temp1 = 0
+        # temp2 = 0
+        # for action in action_list:
+        #     self.Q[state, tuple([action])][3] += (self.Q[state, tuple([action])][2] -
+        #                                           self.Q[state, tuple([action])][3]) / state_counter
+        #     temp1 += self.Q[state, tuple([action])][2] * self.Q[state, tuple([action])][0]
+        #     temp2 += self.Q[state, tuple([action])][3] * self.Q[state, tuple([action])][0]
 
         if temp1 > temp2:
             delta = self.delta_w
         else:
             delta = self.delta_l
 
-        gradients = np.zeros(len(action_list))
-
-        for idx, action_i in enumerate(action_list):
-            if action_i == greedy_action:
-                for action_j in [x for x in action_list if x != action_i]:
-                    gradients[idx] += self.get_delta(state, tuple([action_j]), delta, len(action_list))
-            else:
-                gradients[idx] = -self.get_delta(state, tuple([action_i]), delta, len(action_list))
+        # gradients = np.zeros(len(action_list))
+        gradients2 = np.zeros(len(action_list))
 
         for idx, action in enumerate(action_list):
-            self.Q[state, tuple([action])][2] += gradients[idx]
+            gradients2[idx] = self.get_delta(state, tuple([action]), delta, len(action_list))
+        sumt = np.sum(gradients2)
 
-    def get_delta(self, state, action, delta, lenght):
-        return np.min([self.Q[state, action][2], delta / (lenght - 1)])
+        for idx, action in enumerate(action_list):
+            if action == greedy_action:
+                self.Q[state, tuple([action])][2] += sumt - gradients2[idx]
+            else:
+                self.Q[state, tuple([action])][2] += -gradients2[idx]
+
+        # for idx, action_i in enumerate(action_list):
+        #     if action_i == greedy_action:
+        #         for action_j in [x for x in action_list if x != action_i]:
+        #             gradients[idx] += self.get_delta(state, tuple([action_j]), delta, len(action_list))
+        #     else:
+        #         gradients[idx] = -self.get_delta(state, tuple([action_i]), delta, len(action_list))
+        #
+        # for idx, action in enumerate(action_list):
+        #     self.Q[state, tuple([action])][2] += gradients[idx]
+
+    def get_delta(self, state, action, delta, length):
+        return np.min([self.Q[state, action][2], delta / (length - 1)])
 
     def update_TD(self, state, action, R, next_state, next_action, end=False):
         """
@@ -328,6 +346,7 @@ class MultiAgent:
         self.Q[state, action][0] += self.alpha * (R + self.gamma * next_Q - self.Q[state, action][0])
         self.Q[state, action][1] += 1
 
+        self.state_counter[state] += 1
 
 
 # %% Agent Class
@@ -578,6 +597,5 @@ class Agent:
 
         self.Q[state, action][0] += self.alpha * (R + self.gamma * next_Q - self.Q[state, action][0])
         self.Q[state, action][1] += 1
-
 
         return TD_error
