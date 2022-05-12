@@ -392,8 +392,12 @@ class Agent:
         elif self.eps_method == "decaying":
             self.eps = np.exp(-timestep / weight)
         elif self.eps_method == "adaptive":
-            ratio = (1 - np.exp(-np.abs(self.alpha * td_error) / weight)) / (
-                    1 + np.exp(-np.abs(self.alpha * td_error) / weight))
+            ratio = (1 - np.exp(-np.abs(self.alpha * td_error) / (10 ** -6 * weight))) / (
+                    1 + np.exp(-np.abs(self.alpha * td_error) / (10 ** -6 * weight)))
+            self.eps_table[state] = self.delta * ratio + (1 - self.delta) * self.eps_table[state]
+        elif self.eps_method == 'sigmoid':
+            offset = 1 / (1 + np.exp((-self.alpha * (0 - 0.001)) / (10 ** -6 * weight)))
+            ratio = 1 / (1 + np.exp((-self.alpha * (np.abs(td_error) - 0.001)) / (10 ** -6 * weight))) - offset
             self.eps_table[state] = self.delta * ratio + (1 - self.delta) * self.eps_table[state]
 
     def reset_epsilon(self):
@@ -401,7 +405,7 @@ class Agent:
             pass
         elif self.eps_method == "decaying":
             self.eps = 1
-        elif self.eps_method == "adaptive":
+        else:
             self.eps_table = defaultdict(lambda: 1)
 
     def _initiate_dict(self, value1, value2=0):
