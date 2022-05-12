@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     # ----------- Reinforcement Learning Parameters -----------
     METHOD = agent_settings["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
-    EPSILON_METHOD = "adaptive"
+
     ADJ = agent_settings["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
     ORI = agent_settings["ORI"]  # Include the User Terminal orientation in the state
     DIST = agent_settings["DIST"]  # Include the distance between User Terminal and Base Station in the state
@@ -241,6 +241,7 @@ if __name__ == "__main__":
     R_min_log_validation = np.zeros([Episodes_validation, chunksize])
     R_mean_log_validation = np.zeros([Episodes_validation, chunksize])
 
+    EPSILON_METHOD = "constant"
     Agent = agent_classes.Agent(action_space_r, action_space_t, eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
 
     print('Rewards for training are now calculated')
