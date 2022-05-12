@@ -195,6 +195,7 @@ if __name__ == "__main__":
             ori_discrete_validation[m, :] = helpers.discrete_ori(Orientation_validation[m][0][2, :], ori_res)
     else:
         ori_discrete = None
+        ori_discrete_validation = None
 
     if DIST or LOCATION:
         dist_discrete = np.zeros([M, N])
@@ -206,6 +207,7 @@ if __name__ == "__main__":
             dist_discrete_validation[m, :] = helpers.discrete_dist(pos_log_validation[m], dist_res, r_lim)
     else:
         dist_discrete = None
+        dist_discrete_validation = None
 
     if LOCATION:
         angle_discrete = np.zeros([M, N])
@@ -217,6 +219,7 @@ if __name__ == "__main__":
             angle_discrete_validation[m, :] = helpers.discrete_angle(pos_log_validation[m], angle_res)
     else:
         angle_discrete = None
+        angle_discrete_validation = None
 
     # ----------- Starts the simulation -----------
 
@@ -316,8 +319,11 @@ if __name__ == "__main__":
                 end = True
 
             # Update the current state
-            current_state_parameters = State.get_state_parameters(path_idx, data_idx + n, ori_discrete,
-                                                                  dist_discrete, angle_discrete)
+            current_state_parameters = State.get_state_parameters(path_idx, data_idx + n,
+                                                                  ori_discrete,
+                                                                  dist_discrete,
+                                                                  angle_discrete)
+
             State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
 
             # Calculate the action
@@ -381,7 +387,7 @@ if __name__ == "__main__":
     Agent.eps = validate_eps
     Agent.alpha = validate_alpha
     Agent.gamma = validate_gamma
-    Agent.eps_method = 'adaptive'
+    Agent.eps_method = 'sigmoid'
 
     for episode in tqdm(range(Episodes_validation), desc="Episodes"):
         """
@@ -532,20 +538,20 @@ if __name__ == "__main__":
     try:
         if "NLOS" in channel_settings["scenarios"][0]:
             helpers.dump_hdf5_validate(data_reward, 'Results/',
-                                       f'{CASE}_NLOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_results.hdf5')
+                                       f'{CASE}_NLOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
             # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
         else:
             helpers.dump_hdf5_validate(data_reward, 'Results/',
-                                       f'{CASE}_LOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_results.hdf5')
+                                       f'{CASE}_LOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
             # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
     except OSError as e:
         print(e)
         print("Saving to root folder instead")
         if "NLOS" in channel_settings["scenarios"][0]:
             helpers.dump_hdf5_validate(data_reward, '',
-                                       f'{CASE}_NLOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_results.hdf5')
+                                       f'{CASE}_NLOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
             # helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
         else:
             helpers.dump_hdf5_validate(data_reward, '',
-                                       f'{CASE}_LOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_results.hdf5')
+                                       f'{CASE}_LOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
             # helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
