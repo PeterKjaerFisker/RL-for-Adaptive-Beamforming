@@ -10,6 +10,8 @@ import matplotlib.cm as cm
 import operator as o
 import os
 
+import seaborn as sns
+
 import numpy as np
 
 
@@ -92,25 +94,22 @@ def ECDF(save, data, sections):
     data_len = data.shape[0]
     section_size = int(np.floor(data_len/sections))
     
-    
-    
-    plt.figure()
     plt.title("x-dB Mis-alignment probability - ECDF")
-    
+    fig, ax = plt.subplots()
+    ax.yaxis.tick_right()
+    plt.axvline(-7, linestyle='--', color='black', label='-7 dB')
+    plt.axvline(-3, linestyle='-.', color='black', label='-3 dB')
     for i in range(sections):
-        
-        data_section = np.mean(data[i*section_size:(i+1)*section_size, :], axis=0)
-        data_sorted = np.sort(data_section)
-        y = np.arange(data.shape[1]) / float(data.shape[1])
-        plt.plot(data_sorted, y, label=f'{i*section_size} - {(i+1)*section_size}')
-    
+
+        data_section = data[i*section_size:(i+1)*section_size, :].flatten()
+        sns.ecdfplot(data_section, label=f'{i*section_size} - {(i+1)*section_size}')
+
     plt.legend()
-    plt.xlabel("x-dB Mis-alignment")
+    plt.xlabel('Misalignment in dB')
     plt.ylabel("Probability")
     if save == True:
         plt.savefig("Figures/ECDF.pdf")
     plt.show()
-
 
 def Relative_reward(save, mis_data, mis_mean, mis_min):
     """

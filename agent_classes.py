@@ -379,7 +379,7 @@ class Agent:
 
         self.eps_method = eps[0]
         self.eps = eps[1]
-        self.eps_table = defaultdict(self._initiate_dict(1))
+        self.eps_table = defaultdict(lambda: 1)
         self.delta = 1 / 5  # The inverse of the expected amount of actions in any state. For adaptive epsilon
 
         self.gamma = gamma
@@ -402,7 +402,7 @@ class Agent:
         elif self.eps_method == "decaying":
             self.eps = 1
         elif self.eps_method == "adaptive":
-            self.eps_table = defaultdict(self._initiate_dict(1))
+            self.eps_table = defaultdict(lambda: 1)
 
     def _initiate_dict(self, value1, value2=0):
         """

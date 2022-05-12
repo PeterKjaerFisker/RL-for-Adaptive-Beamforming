@@ -21,7 +21,7 @@ if len(cmd_input) > 1:
     AGENT_SETTINGS_R = sys.argv[2]
     AGENT_SETTINGS_T = sys.argv[3]
 else:
-    CHANNEL_SETTINGS = "pedestrian_LOS_2_users_20000_steps_01"
+    CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
     AGENT_SETTINGS_R = "Q-LEARNING_TTFT_2-0-1-8-2-32_7000_10000"
     AGENT_SETTINGS_T = "Q-LEARNING_TFFT_0-2-0-0-2-32_7000_10000"
 
@@ -213,9 +213,9 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='wolf', eps=0.05, alpha=0.05)
+    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='wolf', eps=0.05, alpha=0.01)
 
-    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='wolf', eps=0.05, alpha=0.05)
+    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='wolf', eps=0.05, alpha=0.01)
 
     print('Rewards are now calculated')
     reward_start = time()

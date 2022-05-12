@@ -11,6 +11,7 @@ from time import time
 import numpy as np
 from tqdm import tqdm
 
+import agent_classes
 import classes
 import helpers
 
@@ -167,7 +168,7 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent = classes.Agent(action_space_r, action_space_t, eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
+    Agent = agent_classes.Agent(action_space_r, action_space_t, eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
 
     print('Rewards are now calculated')
     reward_start = time()

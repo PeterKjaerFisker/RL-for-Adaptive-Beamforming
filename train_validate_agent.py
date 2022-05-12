@@ -21,12 +21,14 @@ if len(cmd_input) > 1:
     validate_eps = float(sys.argv[3])
     validate_alpha = float(sys.argv[4])
     validate_gamma = float(sys.argv[5])
+    validate_weight = float(sys.argv[6])
 else:
     CHANNEL_SETTINGS = "pedestrian_LOS_2_users_20000_steps_01"
     AGENT_SETTINGS = "SARSA_TFFT_2-2-0-0-2-32_7000_2000"
     validate_eps = 1
     validate_alpha = 0.05
     validate_gamma = 0.7
+    validate_weight = 300
 
 # %% main
 if __name__ == "__main__":
@@ -64,11 +66,11 @@ if __name__ == "__main__":
     fc_validation = validation_settings["fc"]  # Center frequency
     P_t_validation = validation_settings["P_t"]  # Transmission power
     lambda_validation = 3e8 / fc  # Wave length
-    Episodes_validation = M
+    Episodes_validation = 10000
 
     # ----------- Reinforcement Learning Parameters -----------
     METHOD = agent_settings["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
-    EPSILON_METHOD = "decaying"
+    EPSILON_METHOD = "adaptive"
     ADJ = agent_settings["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
     ORI = agent_settings["ORI"]  # Include the User Terminal orientation in the state
     DIST = agent_settings["DIST"]  # Include the distance between User Terminal and Base Station in the state
@@ -227,6 +229,7 @@ if __name__ == "__main__":
     R_max_log = np.zeros([Episodes, chunksize])
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
+    TD_log = np.zeros([Episodes, chunksize])
 
     # Initializing arrays for logs.
     action_log_r_validation = np.zeros([Episodes_validation, chunksize])
@@ -345,7 +348,7 @@ if __name__ == "__main__":
             else:
                 raise Exception("Method not recognized")
 
-            Agent.update_epsilon(n + 1, 800, TD_error, helpers.state_to_index(previous_state))
+            Agent.update_epsilon(n + 1, validate_weight, TD_error, helpers.state_to_index(previous_state))
 
             action_log_r[episode, n] = action[0]
             action_log_t[episode, n] = action[1]
@@ -356,11 +359,17 @@ if __name__ == "__main__":
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
 
+            TD_log[episode, n] = TD_error
+
             previous_state = State.state
             previous_beam_nr = beam_nr
             previous_action = action
 
-    # ------- Run agent on validation data -------
+
+
+
+    # ------------------------------------- Run agent on validation data ---------------------------------
+
     print('Rewards for validation are now calculated')
     reward_start = time()
 
@@ -371,6 +380,7 @@ if __name__ == "__main__":
     Agent.eps = validate_eps
     Agent.alpha = validate_alpha
     Agent.gamma = validate_gamma
+    Agent.eps_method = 'adaptive'
 
     for episode in tqdm(range(Episodes_validation), desc="Episodes"):
         """
@@ -473,7 +483,7 @@ if __name__ == "__main__":
             else:
                 raise Exception("Method not recognized")
 
-            Agent.update_epsilon(n + 1, 400, TD_error, helpers.state_to_index(previous_state))
+            Agent.update_epsilon(n + 1, validate_weight, TD_error, helpers.state_to_index(previous_state))
 
             action_log_r_validation[episode, n] = action[0]
             action_log_t_validation[episode, n] = action[1]
