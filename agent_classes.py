@@ -408,7 +408,7 @@ class Agent:
         else:
             self.eps_table = defaultdict(lambda: 1)
 
-    def _initiate_dict(self, value1, value2=0):
+    def _initiate_dict(self, value_est, visit_count=0):
         """
         Small function used when initiating the dicts.
         For the alpha dict, value1 is alphas starting value.
@@ -427,7 +427,7 @@ class Agent:
             An iterative type which defaultdict can use to set starting values.
 
         """
-        return lambda: [value1, value2]
+        return lambda: [value_est, visit_count]
 
     def get_action_list_adj(self, current_beam_nr, Nlayers, action_space):
         """

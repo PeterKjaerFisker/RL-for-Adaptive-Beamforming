@@ -25,10 +25,10 @@ if len(cmd_input) > 1:
     validate_gamma = float(sys.argv[5])
     validate_weight = float(sys.argv[6])
 else:
-    CHANNEL_SETTINGS = "pedestrian_LOS_2_users_20000_steps_01"
-    AGENT_SETTINGS_R = "Q-LEARNING_TTFT_2-0-1-8-2-32_7000_10"
-    AGENT_SETTINGS_T = "Q-LEARNING_TFFT_0-2-0-0-2-32_7000_10"
-    validate_eps = 1
+    CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
+    AGENT_SETTINGS_R = "Q-LEARNING_TTFT_2-0-1-8-2-32_7000_10000"
+    AGENT_SETTINGS_T = "Q-LEARNING_TFFT_0-2-0-0-2-32_7000_10000"
+    validate_eps = 0.05
     validate_alpha = 0.05
     validate_gamma = 0.7
     validate_weight = 300
@@ -307,9 +307,9 @@ if __name__ == "__main__":
     R_min_log_validation = np.zeros([Episodes_validation, chunksize])
     R_mean_log_validation = np.zeros([Episodes_validation, chunksize])
 
-    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='wolf', eps=0.05, alpha=0.01)
+    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=0.05, alpha=0.05)
 
-    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='wolf', eps=0.05, alpha=0.01)
+    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=0.05, alpha=0.05)
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -773,16 +773,16 @@ if __name__ == "__main__":
     try:
         if "NLOS" in channel_settings["scenarios"][0]:
             # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
-            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
+            helpers.dump_hdf5_validate(data_reward, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
         else:
             # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
+            helpers.dump_hdf5_validate(data_reward, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
     except OSError as e:
         print(e)
         print("Saving to root folder instead")
         if "NLOS" in channel_settings["scenarios"][0]:
             # helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
-            helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
+            helpers.dump_hdf5_validate(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
         else:
             # helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-            helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
+            helpers.dump_hdf5_validate(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_validated_{validate_eps}_{validate_alpha}_{validate_gamma}_{validate_weight}_results.hdf5')
