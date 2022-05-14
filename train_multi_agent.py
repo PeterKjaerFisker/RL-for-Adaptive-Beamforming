@@ -213,9 +213,9 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='wolf', eps=0.05, alpha=0.01)
+    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=0.05, alpha=0.05)
 
-    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='wolf', eps=0.05, alpha=0.01)
+    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=0.05, alpha=0.05)
 
     print('Rewards are now calculated')
     reward_start = time()

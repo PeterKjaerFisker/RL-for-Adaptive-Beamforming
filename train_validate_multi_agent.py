@@ -20,10 +20,10 @@ if len(cmd_input) > 1:
     CHANNEL_SETTINGS = sys.argv[1]
     AGENT_SETTINGS_R = sys.argv[2]
     AGENT_SETTINGS_T = sys.argv[3]
-    validate_eps = float(sys.argv[3])
-    validate_alpha = float(sys.argv[4])
-    validate_gamma = float(sys.argv[5])
-    validate_weight = float(sys.argv[6])
+    validate_eps = float(sys.argv[4])
+    validate_alpha = float(sys.argv[5])
+    validate_gamma = float(sys.argv[6])
+    validate_weight = float(sys.argv[7])
 else:
     CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
     AGENT_SETTINGS_R = "Q-LEARNING_TTFT_2-0-1-8-2-32_7000_10000"
@@ -307,9 +307,10 @@ if __name__ == "__main__":
     R_min_log_validation = np.zeros([Episodes_validation, chunksize])
     R_mean_log_validation = np.zeros([Episodes_validation, chunksize])
 
-    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=0.05, alpha=0.05)
+    EPSILON_METHOD = "constant"
+    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
 
-    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=0.05, alpha=0.05)
+    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -414,6 +415,8 @@ if __name__ == "__main__":
         previous_state_t = State_t.state
 
         end = False
+        Agent_r.reset_epsilon()
+        Agent_t.reset_epsilon()
         # Run the episode
         for n in range(chunksize):
 
@@ -447,7 +450,7 @@ if __name__ == "__main__":
 
             # Update Q-table
             if METHOD_r == "SARSA":
-                Agent_r.update_TD(helpers.state_to_index(previous_state_r),
+                TD_error_r = Agent_r.update_TD(helpers.state_to_index(previous_state_r),
                                   previous_action_r,
                                   R,
                                   helpers.state_to_index(State_r.state),
@@ -458,7 +461,7 @@ if __name__ == "__main__":
                 greedy_beam_r, greedy_action_r = Agent_r.greedy_adj(
                     helpers.state_to_index(State_r.state), previous_beam_nr_r, Nlr)
 
-                Agent_r.update_TD(helpers.state_to_index(previous_state_r),
+                TD_error_r = Agent_r.update_TD(helpers.state_to_index(previous_state_r),
                                   previous_action_r,
                                   R,
                                   helpers.state_to_index(State_r.state),
@@ -475,7 +478,7 @@ if __name__ == "__main__":
 
             # Update Q-table
             if METHOD_t == "SARSA":
-                Agent_t.update_TD(helpers.state_to_index(previous_state_t),
+                TD_error_t = Agent_t.update_TD(helpers.state_to_index(previous_state_t),
                                   previous_action_t,
                                   R,
                                   helpers.state_to_index(State_t.state),
@@ -486,7 +489,7 @@ if __name__ == "__main__":
                 greedy_beam_t, greedy_action_t = Agent_t.greedy_adj(
                     helpers.state_to_index(State_t.state), previous_beam_nr_t, Nlt)
 
-                Agent_t.update_TD(helpers.state_to_index(previous_state_t),
+                TD_error_t = Agent_t.update_TD(helpers.state_to_index(previous_state_t),
                                   previous_action_t,
                                   R,
                                   helpers.state_to_index(State_t.state),
@@ -500,6 +503,10 @@ if __name__ == "__main__":
 
             else:
                 raise Exception("Method not recognized for t")
+
+            Agent_r.update_epsilon(n + 1, validate_weight, TD_error_r, helpers.state_to_index(previous_state_r))
+            Agent_t.update_epsilon(n + 1, validate_weight, TD_error_t, helpers.state_to_index(previous_state_r))
+
 
             action_log_r[episode, n] = action_r[0]
             action_log_t[episode, n] = action_t[0]
@@ -528,10 +535,12 @@ if __name__ == "__main__":
     Agent_r.eps = validate_eps
     Agent_r.alpha = validate_alpha
     Agent_r.gamma = validate_gamma
+    Agent_r.eps_method = 'adaptive'
 
     Agent_t.eps = validate_eps
     Agent_t.alpha = validate_alpha
     Agent_t.gamma = validate_gamma
+    Agent_t.eps_method = 'adaptive'
 
 
     for episode in tqdm(range(Episodes_validation), desc="Episodes"):
@@ -629,6 +638,9 @@ if __name__ == "__main__":
         previous_state_t = State_t.state
 
         end = False
+
+        Agent_r.reset_epsilon()
+        Agent_t.reset_epsilon()
         # Run the episode
         for n in range(chunksize):
 
@@ -668,7 +680,7 @@ if __name__ == "__main__":
 
             # Update Q-table
             if METHOD_r == "SARSA":
-                Agent_r.update_TD(helpers.state_to_index(previous_state_r),
+                TD_error_r = Agent_r.update_TD(helpers.state_to_index(previous_state_r),
                                   previous_action_r,
                                   R,
                                   helpers.state_to_index(State_r.state),
@@ -679,7 +691,7 @@ if __name__ == "__main__":
                 greedy_beam_r, greedy_action_r = Agent_r.greedy_adj(
                     helpers.state_to_index(State_r.state), previous_beam_nr_r, Nlr)
 
-                Agent_r.update_TD(helpers.state_to_index(previous_state_r),
+                TD_error_r = Agent_r.update_TD(helpers.state_to_index(previous_state_r),
                                   previous_action_r,
                                   R,
                                   helpers.state_to_index(State_r.state),
@@ -696,7 +708,7 @@ if __name__ == "__main__":
 
             # Update Q-table
             if METHOD_t == "SARSA":
-                Agent_t.update_TD(helpers.state_to_index(previous_state_t),
+                TD_error_t = Agent_t.update_TD(helpers.state_to_index(previous_state_t),
                                   previous_action_t,
                                   R,
                                   helpers.state_to_index(State_t.state),
@@ -707,7 +719,7 @@ if __name__ == "__main__":
                 greedy_beam_t, greedy_action_t = Agent_t.greedy_adj(
                     helpers.state_to_index(State_t.state), previous_beam_nr_t, Nlt)
 
-                Agent_t.update_TD(helpers.state_to_index(previous_state_t),
+                TD_error_t = Agent_t.update_TD(helpers.state_to_index(previous_state_t),
                                   previous_action_t,
                                   R,
                                   helpers.state_to_index(State_t.state),
@@ -721,6 +733,9 @@ if __name__ == "__main__":
 
             else:
                 raise Exception("Method not recognized for t")
+
+            Agent_r.update_epsilon(n + 1, validate_weight, TD_error_r, helpers.state_to_index(previous_state_r))
+            Agent_t.update_epsilon(n + 1, validate_weight, TD_error_t, helpers.state_to_index(previous_state_r))
 
             action_log_r_validation[episode, n] = action_r[0]
             action_log_t_validation[episode, n] = action_t[0]
