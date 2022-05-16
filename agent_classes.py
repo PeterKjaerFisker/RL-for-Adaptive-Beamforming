@@ -53,6 +53,7 @@ class MultiAgent:
         elif self.eps_method == "decaying":
             self.eps = np.exp(-timestep / weight)
         elif self.eps_method == "adaptive":
+            td_error = float(td_error)
             ratio = (1 - np.exp(-np.abs(self.alpha * td_error) / (10 ** -6 * weight))) / (
                     1 + np.exp(-np.abs(self.alpha * td_error) / (10 ** -6 * weight)))
             self.eps_table[state] = self.delta * ratio + (1 - self.delta) * self.eps_table[state]
@@ -66,8 +67,9 @@ class MultiAgent:
             pass
         elif self.eps_method == "decaying":
             self.eps = 1
-        else:
-            self.eps_table = defaultdict(lambda: 1)
+
+    def reset_eps_table(self):
+        self.eps_table = defaultdict(lambda: 1)
 
     def _initiate_dict(self, value_est, visit_count=0, policy_prob=0, exp_policy_prob=0):
         """
@@ -415,7 +417,7 @@ class Agent:
         self.eps_method = eps[0]
         self.eps = eps[1]
         self.eps_table = defaultdict(lambda: 1)
-        self.delta = 1 / 5  # The inverse of the expected amount of actions in any state. For adaptive epsilon
+        self.delta = 1 / 4  # The inverse of the expected amount of actions in any state. For adaptive epsilon
 
         self.gamma = gamma
         self.Q = defaultdict(self._initiate_dict(0.001))
@@ -439,8 +441,9 @@ class Agent:
             pass
         elif self.eps_method == "decaying":
             self.eps = 1
-        else:
-            self.eps_table = defaultdict(lambda: 1)
+
+    def reset_eps_table(self):
+        self.eps_table = defaultdict(lambda: 1)
 
     def _initiate_dict(self, value_est, visit_count=0):
         """

@@ -25,10 +25,10 @@ if len(cmd_input) > 1:
 else:
     CHANNEL_SETTINGS = "pedestrian_LOS_2_users_20000_steps_01"
     AGENT_SETTINGS = "SARSA_TFFT_2-2-0-0-2-32_7000_2000"
-    validate_eps = 1
+    validate_eps = 0
     validate_alpha = 0.05
     validate_gamma = 0.7
-    validate_weight = 300
+    validate_weight = 30
 
 # %% main
 if __name__ == "__main__":
@@ -387,7 +387,8 @@ if __name__ == "__main__":
     Agent.eps = validate_eps
     Agent.alpha = validate_alpha
     Agent.gamma = validate_gamma
-    Agent.eps_method = 'sigmoid'
+    Agent.eps_method = 'adaptive'
+    Agent.reset_eps_table()
 
     for episode in tqdm(range(Episodes_validation), desc="Episodes"):
         """

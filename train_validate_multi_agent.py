@@ -25,13 +25,13 @@ if len(cmd_input) > 1:
     validate_gamma = float(sys.argv[6])
     validate_weight = float(sys.argv[7])
 else:
-    CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
-    AGENT_SETTINGS_R = "Q-LEARNING_TTFT_2-0-1-8-2-32_7000_10000"
-    AGENT_SETTINGS_T = "Q-LEARNING_TFFT_0-2-0-0-2-32_7000_10000"
+    CHANNEL_SETTINGS = "pedestrian_LOS_2_users_20000_steps_01"
+    AGENT_SETTINGS_R = "SARSA_TTFT_2-0-1-8-2-32_7000_10000"
+    AGENT_SETTINGS_T = "SARSA_TFFT_0-2-0-0-2-32_7000_10000"
     validate_eps = 0.05
     validate_alpha = 0.05
     validate_gamma = 0.7
-    validate_weight = 300
+    validate_weight = 30
 
 # %% main
 if __name__ == "__main__":
@@ -296,6 +296,8 @@ if __name__ == "__main__":
     R_max_log = np.zeros([Episodes, chunksize])
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
+    TD_log_r = np.zeros([Episodes, chunksize])
+    TD_log_t = np.zeros([Episodes, chunksize])
 
     # Initializing arrays for logs.
     action_log_r_validation = np.zeros([Episodes_validation, chunksize])
@@ -308,9 +310,9 @@ if __name__ == "__main__":
     R_mean_log_validation = np.zeros([Episodes_validation, chunksize])
 
     EPSILON_METHOD = "constant"
-    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
+    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.01)
 
-    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
+    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.01)
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -505,7 +507,7 @@ if __name__ == "__main__":
                 raise Exception("Method not recognized for t")
 
             Agent_r.update_epsilon(n + 1, validate_weight, TD_error_r, helpers.state_to_index(previous_state_r))
-            Agent_t.update_epsilon(n + 1, validate_weight, TD_error_t, helpers.state_to_index(previous_state_r))
+            Agent_t.update_epsilon(n + 1, validate_weight, TD_error_t, helpers.state_to_index(previous_state_t))
 
 
             action_log_r[episode, n] = action_r[0]
@@ -516,6 +518,9 @@ if __name__ == "__main__":
             R_max_log[episode, n] = R_max
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
+            TD_log_r[episode, n] = TD_error_r
+            TD_log_t[episode, n] = TD_error_t
+
 
             previous_state_r = State_r.state
             previous_state_t = State_t.state
@@ -536,11 +541,13 @@ if __name__ == "__main__":
     Agent_r.alpha = validate_alpha
     Agent_r.gamma = validate_gamma
     Agent_r.eps_method = 'adaptive'
+    Agent_r.reset_eps_table()
 
     Agent_t.eps = validate_eps
     Agent_t.alpha = validate_alpha
     Agent_t.gamma = validate_gamma
     Agent_t.eps_method = 'adaptive'
+    Agent_t.reset_eps_table()
 
 
     for episode in tqdm(range(Episodes_validation), desc="Episodes"):
@@ -735,7 +742,7 @@ if __name__ == "__main__":
                 raise Exception("Method not recognized for t")
 
             Agent_r.update_epsilon(n + 1, validate_weight, TD_error_r, helpers.state_to_index(previous_state_r))
-            Agent_t.update_epsilon(n + 1, validate_weight, TD_error_t, helpers.state_to_index(previous_state_r))
+            Agent_t.update_epsilon(n + 1, validate_weight, TD_error_t, helpers.state_to_index(previous_state_t))
 
             action_log_r_validation[episode, n] = action_r[0]
             action_log_t_validation[episode, n] = action_t[0]
