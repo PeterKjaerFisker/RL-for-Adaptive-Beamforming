@@ -121,7 +121,6 @@ def bulk_loader(path_to_dir):
     folder = os.fsencode(path_to_dir)
     sorted_dir = nt.natsorted([os.fsdecode(element) for element in os.listdir(folder)])
 
-
     for idx, filename in enumerate(sorted_dir):
 
         try:
@@ -687,6 +686,12 @@ def quadriga_simulation(ENGINE, pos_log_name, data_name, para, multi_user):
     return simulation_data
 
 
+def remove_suffix(input_string, suffix):
+    if suffix and input_string.endswith(suffix):
+        return input_string[:-len(suffix)]
+    return input_string
+
+
 @njit()
 def get_H(Nr, Nt, Beta, alpha_rx, alpha_tx):
     # Calculate channel matrix H
@@ -705,5 +710,3 @@ def jit_reward(W, F, H, P_t):
         for q in range(len(W[:, 0])):
             R[p, q] = np.absolute((np.dot(np.dot(np.conjugate(W[q, :]).T, H), F[p, :]) * np.sqrt(P_t))) ** 2
     return R  # Noise should be here ^ in reality
-
-
