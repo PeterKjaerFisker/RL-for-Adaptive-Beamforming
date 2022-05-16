@@ -8,7 +8,7 @@ import helpers
 
 # %% Multi Agent Class
 class MultiAgent:
-    def __init__(self, action_space, agent_type='naive', alpha=0.7, eps=0.1, gamma=0.7):
+    def __init__(self, action_space, agent_type='naive', alpha=0.7, eps=["constant", 0.05], gamma=0.7):
         """
         Initiate a reinforcement learning agent
 
@@ -33,7 +33,12 @@ class MultiAgent:
         self.action_space = action_space
         self.agent_type = agent_type
         self.alpha = alpha
-        self.eps = eps
+
+        self.eps_method = eps[0]
+        self.eps = eps[1]
+        self.eps_table = defaultdict(lambda: 1)
+        self.delta = 1 / 5  # The inverse of the expected amount of actions in any state. For adaptive epsilon
+
         self.gamma = gamma
 
         self.Q = defaultdict(self._initiate_dict(0.001))
@@ -41,6 +46,28 @@ class MultiAgent:
 
         self.delta_w = 0.15
         self.delta_l = 0.60
+
+    def update_epsilon(self, timestep, weight, td_error, state):
+        if self.eps_method == "constant":
+            pass
+        elif self.eps_method == "decaying":
+            self.eps = np.exp(-timestep / weight)
+        elif self.eps_method == "adaptive":
+            ratio = (1 - np.exp(-np.abs(self.alpha * td_error) / (10 ** -6 * weight))) / (
+                    1 + np.exp(-np.abs(self.alpha * td_error) / (10 ** -6 * weight)))
+            self.eps_table[state] = self.delta * ratio + (1 - self.delta) * self.eps_table[state]
+        elif self.eps_method == 'sigmoid':
+            offset = 1 / (1 + np.exp((-self.alpha * (0 - 0.001)) / (10 ** -6 * weight)))
+            ratio = 1 / (1 + np.exp((-self.alpha * (np.abs(td_error) - 0.001)) / (10 ** -6 * weight))) - offset
+            self.eps_table[state] = self.delta * ratio + (1 - self.delta) * self.eps_table[state]
+
+    def reset_epsilon(self):
+        if self.eps_method == "constant":
+            pass
+        elif self.eps_method == "decaying":
+            self.eps = 1
+        else:
+            self.eps_table = defaultdict(lambda: 1)
 
     def _initiate_dict(self, value_est, visit_count=0, policy_prob=0, exp_policy_prob=0):
         """
@@ -230,7 +257,12 @@ class MultiAgent:
             Which direction was chosen
 
         """
-        if np.random.random() > self.eps:
+        if self.eps_method == "adaptive":
+            epsilon = self.eps_table[state]
+        else:
+            epsilon = self.eps
+
+        if np.random.random() > epsilon:
             if self.agent_type == 'wolf':
                 next_beam, next_action = self.get_action_adj(state, current_beam_nr, Nl)
             else:
@@ -343,10 +375,13 @@ class MultiAgent:
         else:
             next_Q = 0
 
+        TD_error = (R + self.gamma * next_Q - self.Q[state, action][0])
+
         self.Q[state, action][0] += self.alpha * (R + self.gamma * next_Q - self.Q[state, action][0])
         self.Q[state, action][1] += 1
 
         self.state_counter[state] += 1
+        return TD_error
 
 
 # %% Agent Class
@@ -386,7 +421,6 @@ class Agent:
         self.Q = defaultdict(self._initiate_dict(0.001))
 
     def update_epsilon(self, timestep, weight, td_error, state):
-
         if self.eps_method == "constant":
             pass
         elif self.eps_method == "decaying":
@@ -408,7 +442,7 @@ class Agent:
         else:
             self.eps_table = defaultdict(lambda: 1)
 
-    def _initiate_dict(self, value1, value2=0):
+    def _initiate_dict(self, value_est, visit_count=0):
         """
         Small function used when initiating the dicts.
         For the alpha dict, value1 is alphas starting value.
@@ -427,7 +461,7 @@ class Agent:
             An iterative type which defaultdict can use to set starting values.
 
         """
-        return lambda: [value1, value2]
+        return lambda: [value_est, visit_count]
 
     def get_action_list_adj(self, current_beam_nr, Nlayers, action_space):
         """
