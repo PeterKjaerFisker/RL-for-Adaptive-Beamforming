@@ -28,9 +28,9 @@ else:
     CHANNEL_SETTINGS = "pedestrian_LOS_2_users_20000_steps_01"
     AGENT_SETTINGS_R = "SARSA_TTFT_2-0-1-8-2-32_7000_10000"
     AGENT_SETTINGS_T = "SARSA_TFFT_0-2-0-0-2-32_7000_10000"
-    validate_eps = 0.05
-    validate_alpha = 0.05
-    validate_gamma = 0.7
+    validate_eps = 0.01
+    validate_alpha = 0.01
+    validate_gamma = 0.6
     validate_weight = 30
 
 # %% main
@@ -76,6 +76,8 @@ if __name__ == "__main__":
     P_t = channel_settings["P_t"]  # Transmission power
     lambda_ = 3e8 / fc  # Wave length
     P_n = 0  # Power of the noise
+    # P_n_db = 10*np.log10(300*10**6) - 174 + 10  # Power of the noise from [SOURCE]. extra 10 added to match P_t
+    # P_n = 10**(P_n_db/10)
 
     # ----------- Validation Simulation Parameters ------------
     N_validation = validation_settings['N']  # Number of steps in an episode
@@ -310,9 +312,9 @@ if __name__ == "__main__":
     R_mean_log_validation = np.zeros([Episodes_validation, chunksize])
 
     EPSILON_METHOD = "constant"
-    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.01)
+    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
 
-    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.01)
+    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -448,7 +450,7 @@ if __name__ == "__main__":
                                                      Nlt)  # TODO måske ændre sidste output til "limiting factors"
 
             # Get reward from performing action
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr_r, beam_nr_t, P_n)
+            R, R_noiseless, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr_r, beam_nr_t, P_n)
 
             # Update Q-table
             if METHOD_r == "SARSA":
@@ -514,7 +516,7 @@ if __name__ == "__main__":
             action_log_t[episode, n] = action_t[0]
             beam_log_r[episode, n] = beam_nr_r[0]
             beam_log_t[episode, n] = beam_nr_t[0]
-            R_log[episode, n] = R
+            R_log[episode, n] = R_noiseless
             R_max_log[episode, n] = R_max
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
@@ -540,13 +542,13 @@ if __name__ == "__main__":
     Agent_r.eps = validate_eps
     Agent_r.alpha = validate_alpha
     Agent_r.gamma = validate_gamma
-    Agent_r.eps_method = 'adaptive'
+    Agent_r.eps_method = 'constant'
     Agent_r.reset_eps_table()
 
     Agent_t.eps = validate_eps
     Agent_t.alpha = validate_alpha
     Agent_t.gamma = validate_gamma
-    Agent_t.eps_method = 'adaptive'
+    Agent_t.eps_method = 'constant'
     Agent_t.reset_eps_table()
 
 
@@ -683,7 +685,7 @@ if __name__ == "__main__":
                                                      Nlt)  # TODO måske ændre sidste output til "limiting factors"
 
             # Get reward from performing action
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr_r, beam_nr_t, P_n)
+            R, R_noiseless, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr_r, beam_nr_t, P_n)
 
             # Update Q-table
             if METHOD_r == "SARSA":
@@ -748,7 +750,7 @@ if __name__ == "__main__":
             action_log_t_validation[episode, n] = action_t[0]
             beam_log_r_validation[episode, n] = beam_nr_r[0]
             beam_log_t_validation[episode, n] = beam_nr_t[0]
-            R_log_validation[episode, n] = R
+            R_log_validation[episode, n] = R_noiseless
             R_max_log_validation[episode, n] = R_max
             R_min_log_validation[episode, n] = R_min
             R_mean_log_validation[episode, n] = R_mean

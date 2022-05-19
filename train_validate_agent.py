@@ -331,7 +331,7 @@ if __name__ == "__main__":
             beam_nr, action = Agent.e_greedy_adj(helpers.state_to_index(State.state), previous_beam_nr, Nlr, Nlt)
 
             # Get reward from performing action
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr[0], beam_nr[1])
+            R, R_noiseless, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr[0], beam_nr[1])
 
             # Update Q-table
             if METHOD == "SARSA":
@@ -361,7 +361,7 @@ if __name__ == "__main__":
             action_log_t[episode, n] = action[1]
             beam_log_r[episode, n] = beam_nr[0]
             beam_log_t[episode, n] = beam_nr[1]
-            R_log[episode, n] = R
+            R_log[episode, n] = R_noiseless
             R_max_log[episode, n] = R_max
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
@@ -467,7 +467,7 @@ if __name__ == "__main__":
 
             # Get reward from performing action
 
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr[0], beam_nr[1])
+            R, R_noiseless, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr[0], beam_nr[1])
 
             # Update Q-table
             if METHOD == "SARSA":
@@ -497,7 +497,7 @@ if __name__ == "__main__":
             action_log_t_validation[episode, n] = action[1]
             beam_log_r_validation[episode, n] = beam_nr[0]
             beam_log_t_validation[episode, n] = beam_nr[1]
-            R_log_validation[episode, n] = R
+            R_log_validation[episode, n] = R_noiseless
             R_max_log_validation[episode, n] = R_max
             R_min_log_validation[episode, n] = R_min
             R_mean_log_validation[episode, n] = R_mean

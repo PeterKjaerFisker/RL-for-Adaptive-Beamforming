@@ -481,8 +481,8 @@ class Environment():
         """
         R = self.reward_matrix[path_idx, stepnr]
         n = np.random.normal(0,p_n/2,R.shape) + 1j * np.random.normal(0,p_n/2,R.shape)
-        R = np.abs(np.sqrt(R)+n)**2
-        return R[beam_nr_t, beam_nr_r], np.max(R), np.min(R), np.mean(R)
+        R_n = np.abs(np.sqrt(R)+n)**2
+        return R_n[beam_nr_t, beam_nr_r], R[beam_nr_t, beam_nr_r], np.max(R), np.min(R), np.mean(R)
 
     def update_data(self, AoA, AoD, Betas):
         """
