@@ -17,7 +17,7 @@ import h5py
 # %% Load results
 # pickle_data = helpers.load_pickle('Results/','before_preprocessing_car_urban_LOS_sarsa_TTFF_2-2-2-4-0-0_5000_300_results.pickle')
 # bulk_data = helpers.bulk_loader('Results/Centralized_Agent_Sweeps/HDF5/Decimated/')
-bulk_data = helpers.bulk_loader('Results/Hyper_param/')
+bulk_data = helpers.bulk_loader('Results/Single_hyper_epsilon_a2/')
 # bulk_data = h5py.File('Results/Multi_test/pedestrian_LOS_SARSA_TFFT_2-2-0-0-2-32_7000_10000_validated_results.hdf5','r+')
 
 # %% Data analysis
@@ -31,7 +31,8 @@ bulk_data = helpers.bulk_loader('Results/Hyper_param/')
 span = [(0, 1000), (1000, 2000), (2000, 3000), (3000, 4000), (4000, 5000), (5000, 6000), (6000, 7000), (7000, 8000),
         (8000, 9000), (9000, 10000)]
 # span = [(x*100,(x+1)*100) for x in range(100)]
-method = True
+method = False
+Save = False
 
 dim1 = len(bulk_data)
 dim2 = len(span)
@@ -91,14 +92,14 @@ for test_idx, test in enumerate(nt.natsorted(bulk_data.keys())):
         if leftovers != '':  # Isolates the second state
             stripped_label_second = leftovers.lstrip('car_urbanpedestrian_NLOS_sarsaSIMPLEQ-LEARNING_TF_')
             suffix_remove_second = stripped_label_second.lstrip('0123456789-')
-            label_second = helpers.remove_suffix(stripped_label_second, suffix_remove_second)
+            label_second = helpers.remove_suffix(stripped_label_second, suffix_remove_second) + ' '
             stripped_label = stripped_label + ' & ' + label_second
 
         validate_label = test.lstrip('car_urbanpedestrian_NLOS_sarsaSIMPLEQ-LEARNING_TF_0123456789-')
         if validate_label != '':
             validate_label = validate_label.lstrip('validated_')
             epsilon_remove = validate_label.lstrip('.0123456789')
-            epsilon_label = ' ' + helpers.remove_suffix(validate_label, epsilon_remove)
+            epsilon_label = helpers.remove_suffix(validate_label, epsilon_remove)
             stepsize_remove = epsilon_remove.lstrip('_')
             stepsize_remove = stepsize_remove.lstrip('.0123456789')
             stepsize_label = ' ' + helpers.remove_suffix(epsilon_remove, stepsize_remove).lstrip('_')
@@ -110,7 +111,7 @@ for test_idx, test in enumerate(nt.natsorted(bulk_data.keys())):
             weight_label = ' ' + helpers.remove_suffix(discount_remove, weight_remove).lstrip('_')
             stripped_label = stripped_label + epsilon_label + stepsize_label + discount_label + weight_label
 
-    if stripped_label == '2-2-0-0-0-0':
+    if stripped_label == '2-0-1-8-2-32 & 0-2-0-0-2-32 0.05 0.05 0.7 ':
         plt.plot(plot_array[test_idx, :], color='k', label=stripped_label, marker='d', linestyle='dashed')
     else:
         plt.plot(plot_array[test_idx, :], label=stripped_label, marker='d')
@@ -149,7 +150,9 @@ plt.xlabel("Episode range [-,-]")
 plt.ylabel("Average absolute misalignment [dB]")
 plt.grid(True, axis='x')
 plt.title(plot_title)
-# plt.savefig("Figures/Performance_CPLS.pdf", bbox_extra_artists=(lgd,), bbox_inches='tight') # Saves the figure
+
+if Save:
+    plt.savefig("Figures/Performance_MPLS.pdf", bbox_extra_artists=(lgd,), bbox_inches='tight') # Saves the figure
 
 plt.show()
 

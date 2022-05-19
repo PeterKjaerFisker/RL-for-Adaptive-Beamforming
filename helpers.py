@@ -124,12 +124,17 @@ def bulk_loader(path_to_dir):
     for idx, filename in enumerate(sorted_dir):
 
         try:
-            del myfile[f'{filename.strip("_results.hdf5")}']
+            # del myfile[f'{filename.strip("_results.hdf5")}']
+            filename_rev = remove_suffix(filename,'_results.hdf5')
+            del myfile[f'{filename_rev}']
         except KeyError:
             pass
 
         if filename.endswith(".hdf5"):
-            myfile[f'{filename.strip("_results.hdf5")}'] = h5py.ExternalLink(path_to_dir + filename, '/')
+            # myfile[f'{filename.strip("_results.hdf5")}'] = h5py.ExternalLink(path_to_dir + filename, '/')
+            
+            filename_rev = remove_suffix(filename,'_results.hdf5')
+            myfile[f'{filename}'] = h5py.ExternalLink(path_to_dir + filename, '/')
         else:
             pass
 
