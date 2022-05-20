@@ -2,6 +2,7 @@
 __pycache__/
 quadriga_src/
 tutorials/
+Figures/
 *.asv
 Test.py
 results.pickle
