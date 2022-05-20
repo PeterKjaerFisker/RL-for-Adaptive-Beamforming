@@ -312,9 +312,9 @@ if __name__ == "__main__":
     R_mean_log_validation = np.zeros([Episodes_validation, chunksize])
 
     EPSILON_METHOD = "constant"
-    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
+    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05, gamma=0.7)
 
-    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
+    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05, gamma=0.7)
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -542,13 +542,13 @@ if __name__ == "__main__":
     Agent_r.eps = validate_eps
     Agent_r.alpha = validate_alpha
     Agent_r.gamma = validate_gamma
-    Agent_r.eps_method = 'constant'
+    Agent_r.eps_method = 'adaptive'
     Agent_r.reset_eps_table()
 
     Agent_t.eps = validate_eps
     Agent_t.alpha = validate_alpha
     Agent_t.gamma = validate_gamma
-    Agent_t.eps_method = 'constant'
+    Agent_t.eps_method = 'adaptive'
     Agent_t.reset_eps_table()
 
 

@@ -8,7 +8,7 @@ import helpers
 
 # %% Multi Agent Class
 class MultiAgent:
-    def __init__(self, action_space, agent_type='naive', alpha=0.7, eps=["constant", 0.05], gamma=0.7):
+    def __init__(self, action_space, agent_type='naive', alpha=0.01, eps=["constant", 0.01], gamma=0.6):
         """
         Initiate a reinforcement learning agent
 
@@ -388,7 +388,7 @@ class MultiAgent:
 
 # %% Agent Class
 class Agent:
-    def __init__(self, action_space_r, action_space_t, alpha=0.7, eps=["constant", 0.05], gamma=0.7):
+    def __init__(self, action_space_r, action_space_t, alpha=0.01, eps=["constant", 0.01], gamma=0.7):
         """
         Initiate a reinforcement learning agent
 

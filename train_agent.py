@@ -19,9 +19,17 @@ cmd_input = sys.argv
 if len(cmd_input) > 1:
     CHANNEL_SETTINGS = sys.argv[1]
     AGENT_SETTINGS = sys.argv[2]
+    eps = float(sys.argv[3])
+    alpha = float(sys.argv[4])
+    gamma = float(sys.argv[5])
+    weight = float(sys.argv[6])
 else:
     CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
     AGENT_SETTINGS = "Q-LEARNING_TFFF_2-2-0-0-0-0_7000_10000"
+    eps = 0.01
+    alpha = 0.01
+    gamma = 0.6
+    weight = 10000
 
 # %% main
 if __name__ == "__main__":
@@ -46,10 +54,10 @@ if __name__ == "__main__":
     fc = channel_settings["fc"]  # Center frequency
     P_t = channel_settings["P_t"]  # Transmission power
     lambda_ = 3e8 / fc  # Wave length
+    P_n = 0  # Power of the noise
 
     # ----------- Reinforcement Learning Parameters -----------
     METHOD = agent_settings["METHOD"]  # RL table update, "simple", "SARSA" or "Q-LEARNING"
-    EPSILON_METHOD = 'constant'
 
     ADJ = agent_settings["ADJ"]  # Whether action space should be all beams ("False") or adjacent ("True")
     ORI = agent_settings["ORI"]  # Include the User Terminal orientation in the state
@@ -168,7 +176,9 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent = agent_classes.Agent(action_space_r, action_space_t, eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05)
+    EPSILON_METHOD = 'adaptive'
+    Agent = agent_classes.Agent(action_space_r, action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', eps],
+                                alpha=alpha, gamma=gamma)
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -240,38 +250,11 @@ if __name__ == "__main__":
         for n in range(chunksize):
 
             # Update the current state
-            # Check if the user terminal orientation is part of the state.
-            if ORI:
-                # Get the current discrete orientation of the user terminal
-                ori = int(ori_discrete[path_idx, data_idx + n])
-                # Check if current step is the last step in episode.
-                # If not the last step, the next orientation of the user terminal is assigned to a variable
-                if n < chunksize - 1:
-                    next_ori = int(ori_discrete[path_idx, data_idx + n + 1])
-            else:
-                ori = "N/A"
-                next_ori = "N/A"
-
-            if DIST or LOCATION:
-                dist = dist_discrete[path_idx, data_idx + n]
-                if n < chunksize - 1:
-                    next_dist = dist_discrete[path_idx, data_idx + n + 1]
-            else:
-                dist = "N/A"
-                next_dist = "N/A"
-
-            if LOCATION:
-                angle = angle_discrete[path_idx, data_idx + n]
-                if n < chunksize - 1:
-                    next_angle = angle_discrete[path_idx, data_idx + n + 1]
-            else:
-                angle = "N/A"
-                next_angle = "N/A"
-
             if n == chunksize - 1:
                 end = True
 
-            current_state_parameters = [dist, ori, angle]
+            current_state_parameters = State.get_state_parameters(path_idx, data_idx + n, ori_discrete,
+                                                                  dist_discrete, angle_discrete)
 
             # Calculate the action
             State.state = State.build_state(previous_beam_nr, current_state_parameters, previous_action)
@@ -281,36 +264,37 @@ if __name__ == "__main__":
 
             # Get reward from performing action
 
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr)
+            R, R_noiseless, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr)
 
             # Update Q-table
             if METHOD == "SARSA":
                 TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
-                                previous_action,
-                                R,
-                                helpers.state_to_index(State.state),
-                                action,
-                                end=end)
+                                           previous_action,
+                                           R,
+                                           helpers.state_to_index(State.state),
+                                           action,
+                                           end=end)
 
             elif METHOD == "Q-LEARNING":
-                greedy_beam, greedy_action = Agent.greedy_adj(helpers.state_to_index(State.state), previous_beam_nr, Nlr, Nlt)
+                greedy_beam, greedy_action = Agent.greedy_adj(helpers.state_to_index(State.state), previous_beam_nr,
+                                                              Nlr, Nlt)
 
                 TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
-                                previous_action,
-                                R,
-                                helpers.state_to_index(State.state),
-                                greedy_action,
-                                end=end)
+                                           previous_action,
+                                           R,
+                                           helpers.state_to_index(State.state),
+                                           greedy_action,
+                                           end=end)
             else:
                 raise Exception("Method not recognized")
 
-            Agent.update_epsilon(n + 1, 800, TD_error, helpers.state_to_index(previous_state))
+            Agent.update_epsilon(n + 1, weight, TD_error, helpers.state_to_index(previous_state))
 
             action_log_r[episode, n] = action[0]
             action_log_t[episode, n] = action[1]
             beam_log_r[episode, n] = beam_nr[0]
             beam_log_t[episode, n] = beam_nr[1]
-            R_log[episode, n] = R
+            R_log[episode, n] = R_noiseless
             R_max_log[episode, n] = R_max
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
@@ -339,17 +323,15 @@ if __name__ == "__main__":
 
     try:
         if "NLOS" in channel_settings["scenarios"][0]:
-            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
-            # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, 'Results/',
+                              f'{CASE}_NLOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
         else:
-            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
-            # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, 'Results/',
+                              f'{CASE}_LOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
     except OSError as e:
         print(e)
         print("Saving to root folder instead")
         if "NLOS" in channel_settings["scenarios"][0]:
-            helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
-            # helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
         else:
-            helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
-            # helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')

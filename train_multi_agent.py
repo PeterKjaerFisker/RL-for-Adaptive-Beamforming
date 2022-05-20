@@ -20,10 +20,18 @@ if len(cmd_input) > 1:
     CHANNEL_SETTINGS = sys.argv[1]
     AGENT_SETTINGS_R = sys.argv[2]
     AGENT_SETTINGS_T = sys.argv[3]
+    eps = float(sys.argv[4])
+    alpha = float(sys.argv[5])
+    gamma = float(sys.argv[6])
+    weight = float(sys.argv[7])
 else:
     CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
     AGENT_SETTINGS_R = "Q-LEARNING_TTFT_2-0-1-8-2-32_7000_10000"
     AGENT_SETTINGS_T = "Q-LEARNING_TFFT_0-2-0-0-2-32_7000_10000"
+    eps = 0.01
+    alpha = 0.01
+    gamma = 0.6
+    weight = 10000
 
 # %% main
 if __name__ == "__main__":
@@ -213,9 +221,10 @@ if __name__ == "__main__":
     R_min_log = np.zeros([Episodes, chunksize])
     R_mean_log = np.zeros([Episodes, chunksize])
 
-    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=0.05, alpha=0.05)
+    EPSILON_METHOD = "adaptive"
+    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', eps], alpha=alpha, gamma=gamma)
 
-    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=0.05, alpha=0.05)
+    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', eps], alpha=alpha, gamma=gamma)
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -320,6 +329,8 @@ if __name__ == "__main__":
         previous_state_t = State_t.state
 
         end = False
+        Agent_r.reset_epsilon()
+        Agent_t.reset_epsilon()
         # Run the episode
         for n in range(chunksize):
 
@@ -349,27 +360,27 @@ if __name__ == "__main__":
                                                      Nlt)  # TODO måske ændre sidste output til "limiting factors"
 
             # Get reward from performing action
-            R, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr_r, beam_nr_t, P_n)
+            R, R_noiseless, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr_r, beam_nr_t, P_n)
 
             # Update Q-table
             if METHOD_r == "SARSA":
-                Agent_r.update_TD(helpers.state_to_index(previous_state_r),
-                                  previous_action_r,
-                                  R,
-                                  helpers.state_to_index(State_r.state),
-                                  action_r,
-                                  end=end)
+                TD_error_r = Agent_r.update_TD(helpers.state_to_index(previous_state_r),
+                                               previous_action_r,
+                                               R,
+                                               helpers.state_to_index(State_r.state),
+                                               action_r,
+                                               end=end)
 
             elif METHOD_r == "Q-LEARNING":
                 greedy_beam_r, greedy_action_r = Agent_r.greedy_adj(
                     helpers.state_to_index(State_r.state), previous_beam_nr_r, Nlr)
 
-                Agent_r.update_TD(helpers.state_to_index(previous_state_r),
-                                  previous_action_r,
-                                  R,
-                                  helpers.state_to_index(State_r.state),
-                                  greedy_action_r,
-                                  end=end)
+                TD_error_r = Agent_r.update_TD(helpers.state_to_index(previous_state_r),
+                                               previous_action_r,
+                                               R,
+                                               helpers.state_to_index(State_r.state),
+                                               greedy_action_r,
+                                               end=end)
 
                 if Agent_r.agent_type == 'wolf':
                     Agent_r.update_WoLF_PHC_adj(helpers.state_to_index(previous_state_r),
@@ -381,23 +392,23 @@ if __name__ == "__main__":
 
             # Update Q-table
             if METHOD_t == "SARSA":
-                Agent_t.update_TD(helpers.state_to_index(previous_state_t),
-                                  previous_action_t,
-                                  R,
-                                  helpers.state_to_index(State_t.state),
-                                  action_t,
-                                  end=end)
+                TD_error_t = Agent_t.update_TD(helpers.state_to_index(previous_state_t),
+                                               previous_action_t,
+                                               R,
+                                               helpers.state_to_index(State_t.state),
+                                               action_t,
+                                               end=end)
 
             elif METHOD_t == "Q-LEARNING":  # Note that next_action here is a direction index and not a beam number
                 greedy_beam_t, greedy_action_t = Agent_t.greedy_adj(
                     helpers.state_to_index(State_t.state), previous_beam_nr_t, Nlt)
 
-                Agent_t.update_TD(helpers.state_to_index(previous_state_t),
-                                  previous_action_t,
-                                  R,
-                                  helpers.state_to_index(State_t.state),
-                                  greedy_action_t,
-                                  end=end)
+                TD_error_t = Agent_t.update_TD(helpers.state_to_index(previous_state_t),
+                                               previous_action_t,
+                                               R,
+                                               helpers.state_to_index(State_t.state),
+                                               greedy_action_t,
+                                               end=end)
 
                 if Agent_t.agent_type == 'wolf':
                     Agent_t.update_WoLF_PHC_adj(helpers.state_to_index(previous_state_t),
@@ -407,11 +418,14 @@ if __name__ == "__main__":
             else:
                 raise Exception("Method not recognized for t")
 
+            Agent_r.update_epsilon(n + 1, weight, TD_error_r, helpers.state_to_index(previous_state_r))
+            Agent_t.update_epsilon(n + 1, weight, TD_error_t, helpers.state_to_index(previous_state_t))
+
             action_log_r[episode, n] = action_r[0]
             action_log_t[episode, n] = action_t[0]
             beam_log_r[episode, n] = beam_nr_r[0]
             beam_log_t[episode, n] = beam_nr_t[0]
-            R_log[episode, n] = R
+            R_log[episode, n] = R_noiseless
             R_max_log[episode, n] = R_max
             R_min_log[episode, n] = R_min
             R_mean_log[episode, n] = R_mean
@@ -446,16 +460,18 @@ if __name__ == "__main__":
     try:
         if "NLOS" in channel_settings["scenarios"][0]:
             # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
-            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_hdf5(data_reward, 'Results/',
+                              f'{CASE}_NLOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
         else:
             # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-            helpers.dump_hdf5(data_reward, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_hdf5(data_reward, 'Results/',
+                              f'{CASE}_LOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
     except OSError as e:
         print(e)
         print("Saving to root folder instead")
         if "NLOS" in channel_settings["scenarios"][0]:
             # helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
-            helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
         else:
             # helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-            helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_results.hdf5')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
