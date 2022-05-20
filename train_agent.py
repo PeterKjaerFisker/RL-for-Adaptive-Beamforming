@@ -177,8 +177,8 @@ if __name__ == "__main__":
     R_mean_log = np.zeros([Episodes, chunksize])
 
     EPSILON_METHOD = 'adaptive'
-    Agent = agent_classes.Agent(action_space_r, action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', eps],
-                                alpha=alpha, gamma=gamma)
+    Agent = agent_classes.Agent(action_space_r, action_space_t, eps=[f'{EPSILON_METHOD}', eps], alpha=alpha,
+                                gamma=gamma)
 
     print('Rewards are now calculated')
     reward_start = time()
