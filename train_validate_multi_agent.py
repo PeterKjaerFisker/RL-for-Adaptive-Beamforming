@@ -76,7 +76,12 @@ if __name__ == "__main__":
     P_t = channel_settings["P_t"]  # Transmission power
     lambda_ = 3e8 / fc  # Wave length
     P_n = 0  # Power of the noise
-    # P_n_db = 10*np.log10(300*10**6) - 174 + 10  # Power of the noise from [SOURCE]. extra 10 added to match P_t
+
+    # Boltzmann constant
+    # k = 1.380649 * 10 ** (-23)
+    # # Power of the noise from [SOURCE]. extra 10 added to match P_t
+    # P_n_db = 10 * np.log10(k * 290 * 400 * 10 ** 6 / 0.001) + 10
+    # P_n_db += 10*np.log10(9/0.001)  # Add additional noise from noise factor (9dB) to see how well it performs.
     # P_n = 10**(P_n_db/10)
 
     # ----------- Validation Simulation Parameters ------------
@@ -311,10 +316,26 @@ if __name__ == "__main__":
     R_min_log_validation = np.zeros([Episodes_validation, chunksize])
     R_mean_log_validation = np.zeros([Episodes_validation, chunksize])
 
-    EPSILON_METHOD = "constant"
+    EPSILON_METHOD = "adaptive"
+    # Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05, gamma=0.7)
+
+    # Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05, gamma=0.7)
+    
     Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05, gamma=0.7)
 
     Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05, gamma=0.7)
+    
+    Agent_r.eps = validate_eps
+    Agent_r.alpha = validate_alpha
+    Agent_r.gamma = validate_gamma
+    Agent_r.eps_method = EPSILON_METHOD
+    Agent_r.reset_eps_table()
+
+    Agent_t.eps = validate_eps
+    Agent_t.alpha = validate_alpha
+    Agent_t.gamma = validate_gamma
+    Agent_t.eps_method = EPSILON_METHOD
+    Agent_t.reset_eps_table()
 
     print('Rewards are now calculated')
     reward_start = time()
@@ -539,16 +560,21 @@ if __name__ == "__main__":
     Env.create_reward_matrix()
 
     print(f'Rewards tog {time() - reward_start} sekunder at regne')
+    
+    Agent_r = agent_classes.MultiAgent(action_space_r, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05, gamma=0.7)
+
+    Agent_t = agent_classes.MultiAgent(action_space_t, agent_type='naive', eps=[f'{EPSILON_METHOD}', 0.05], alpha=0.05, gamma=0.7)
+    
     Agent_r.eps = validate_eps
     Agent_r.alpha = validate_alpha
     Agent_r.gamma = validate_gamma
-    Agent_r.eps_method = 'adaptive'
+    Agent_r.eps_method = EPSILON_METHOD
     Agent_r.reset_eps_table()
 
     Agent_t.eps = validate_eps
     Agent_t.alpha = validate_alpha
     Agent_t.gamma = validate_gamma
-    Agent_t.eps_method = 'adaptive'
+    Agent_t.eps_method = EPSILON_METHOD
     Agent_t.reset_eps_table()
 
 

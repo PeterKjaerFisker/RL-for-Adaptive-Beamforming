@@ -26,11 +26,11 @@ if len(cmd_input) > 1:
     weight = float(sys.argv[7])
 else:
     CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
-    AGENT_SETTINGS_R = "Q-LEARNING_TTFT_2-0-1-8-2-32_7000_10000"
-    AGENT_SETTINGS_T = "Q-LEARNING_TFFT_0-2-0-0-2-32_7000_10000"
-    eps = 0.01
+    AGENT_SETTINGS_R = "SARSA_TTFT_2-0-1-8-2-32_7000_10000"
+    AGENT_SETTINGS_T = "SARSA_TFFT_0-2-0-0-2-32_7000_10000"
+    eps = 0
     alpha = 0.01
-    gamma = 0.6
+    gamma = 0
     weight = 10000
 
 # %% main
@@ -70,14 +70,14 @@ if __name__ == "__main__":
     fc = channel_settings["fc"]  # Center frequency
     P_t = channel_settings["P_t"]  # Transmission power
     lambda_ = 3e8 / fc  # Wave length
-    # P_n = 0  # Power of the noise
+    P_n = 0  # Power of the noise
 
-    # Boltzmann constant
-    k = 1.380649 * 10 ** (-23)
-    # Power of the noise from [SOURCE]. extra 10 added to match P_t
-    P_n_db = 10 * np.log10(k * 290 * 400 * 10 ** 6 / 0.001) + 10
-    # P_n_db += 10*np.log10(9/0.001)  # Add additional noise from noise factor (9dB) to see how well it performs.
-    P_n = 10**(P_n_db/10)
+    # # Boltzmann constant
+    # k = 1.380649 * 10 ** (-23)
+    # # Power of the noise from [SOURCE]. extra 10 added to match P_t
+    # P_n_db = 10 * np.log10(k * 290 * 400 * 10 ** 6 / 0.001) + 10
+    # # P_n_db += 10*np.log10(9/0.001)  # Add additional noise from noise factor (9dB) to see how well it performs.
+    # P_n = 10**(P_n_db/10)
 
 
     # ----------- Reinforcement Learning Parameters -----------
@@ -263,12 +263,12 @@ if __name__ == "__main__":
         # TODO dette skal ikke blot være beams men én beam og et antal tidligere "actions"
 
         if n_actions_r_r > 0:
-            State_tmp_r = [[tuple([x]) for x in np.random.randint(0, Nbeam_tot_r, n_actions_r_r)]]
+            State_tmp_r = [[tuple([x]) for x in np.random.randint( (2 ** Nlr) - 1, Nbeam_tot_r, n_actions_r_r)]]
         else:
             State_tmp_r = [list("N/A")]
 
         if n_actions_t_r > 0:
-            State_tmp_r.append([tuple([x]) for x in np.random.randint(0, Nbeam_tot_t, n_actions_t_r)])
+            State_tmp_r.append([tuple([x]) for x in np.random.randint((2 ** Nlt) - 1, Nbeam_tot_t, n_actions_t_r)])
         else:
             State_tmp_r.append(["N/A"])
 
@@ -290,12 +290,12 @@ if __name__ == "__main__":
         # ------------ initiate state for transmitter -----------
 
         if n_actions_r_t > 0:
-            State_tmp_t = [[tuple([x]) for x in np.random.randint(0, Nbeam_tot_r, n_actions_r_t)]]
+            State_tmp_t = [[tuple([x]) for x in np.random.randint((2 ** Nlr) - 1, Nbeam_tot_r, n_actions_r_t)]]
         else:
             State_tmp_t = [list("N/A")]
 
         if n_actions_t_t > 0:
-            State_tmp_t.append([tuple([x]) for x in np.random.randint(0, Nbeam_tot_t, n_actions_t_t)])
+            State_tmp_t.append([tuple([x]) for x in np.random.randint((2 ** Nlt) - 1, Nbeam_tot_t, n_actions_t_t)])
         else:
             State_tmp_t.append(["N/A"])
 
@@ -320,11 +320,11 @@ if __name__ == "__main__":
         # Initiate the action
         previous_beam_nr_r, previous_action_r = Agent_r.e_soft_adj(helpers.state_to_index(State_r.state),
                                                                    State_r.state[0][-1],
-                                                                   Nlr)
+                                                                   Nl=1)
 
         previous_beam_nr_t, previous_action_t = Agent_t.e_soft_adj(helpers.state_to_index(State_t.state),
                                                                    State_t.state[1][-1],
-                                                                   Nlt)
+                                                                   Nl=1)
 
         #  FOR DEBUG PURPOSES, DO NOT REMOVE YET
         # beam_nr_list_r, action_list_r = Agent_r.get_action_list_adj(State_r.state[0][-1][0], Nlr, Agent_r.action_space)
@@ -357,7 +357,7 @@ if __name__ == "__main__":
             # Calculate the action
             beam_nr_r, action_r = Agent_r.e_soft_adj(helpers.state_to_index(State_r.state),
                                                      previous_beam_nr_r,
-                                                     Nlr)  # TODO måske ændre sidste output til "limiting factors"
+                                                     Nl=1)  # TODO måske ændre sidste output til "limiting factors"
 
             State_t.state = State_t.build_state(tuple([previous_beam_nr_r, previous_beam_nr_t]),
                                                 current_state_parameters_t,
@@ -365,7 +365,7 @@ if __name__ == "__main__":
 
             beam_nr_t, action_t = Agent_t.e_soft_adj(helpers.state_to_index(State_t.state),
                                                      previous_beam_nr_t,
-                                                     Nlt)  # TODO måske ændre sidste output til "limiting factors"
+                                                     Nl=1)  # TODO måske ændre sidste output til "limiting factors"
 
             # Get reward from performing action
             R, R_noiseless, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr_r, beam_nr_t, P_n)
@@ -381,7 +381,7 @@ if __name__ == "__main__":
 
             elif METHOD_r == "Q-LEARNING":
                 greedy_beam_r, greedy_action_r = Agent_r.greedy_adj(
-                    helpers.state_to_index(State_r.state), previous_beam_nr_r, Nlr)
+                    helpers.state_to_index(State_r.state), previous_beam_nr_r, Nl=1)
 
                 TD_error_r = Agent_r.update_TD(helpers.state_to_index(previous_state_r),
                                                previous_action_r,
@@ -393,7 +393,7 @@ if __name__ == "__main__":
                 if Agent_r.agent_type == 'wolf':
                     Agent_r.update_WoLF_PHC_adj(helpers.state_to_index(previous_state_r),
                                                 helpers.state_to_index(previous_state_r)[0][-1],
-                                                Nlr)
+                                                Nl=1)
 
             else:
                 raise Exception("Method not recognized for r")
@@ -409,7 +409,7 @@ if __name__ == "__main__":
 
             elif METHOD_t == "Q-LEARNING":  # Note that next_action here is a direction index and not a beam number
                 greedy_beam_t, greedy_action_t = Agent_t.greedy_adj(
-                    helpers.state_to_index(State_t.state), previous_beam_nr_t, Nlt)
+                    helpers.state_to_index(State_t.state), previous_beam_nr_t, Nl=1)
 
                 TD_error_t = Agent_t.update_TD(helpers.state_to_index(previous_state_t),
                                                previous_action_t,
@@ -421,7 +421,7 @@ if __name__ == "__main__":
                 if Agent_t.agent_type == 'wolf':
                     Agent_t.update_WoLF_PHC_adj(helpers.state_to_index(previous_state_t),
                                                 helpers.state_to_index(previous_state_t)[1][-1],
-                                                Nlt)
+                                                Nl=1)
 
             else:
                 raise Exception("Method not recognized for t")
@@ -469,17 +469,17 @@ if __name__ == "__main__":
         if "NLOS" in channel_settings["scenarios"][0]:
             # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
             helpers.dump_hdf5(data_reward, 'Results/',
-                              f'{CASE}_NLOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
+                              f'{CASE}_NLOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_flat_codebook_results.hdf5')
         else:
             # helpers.dump_pickle(data_agent, 'Results/', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
             helpers.dump_hdf5(data_reward, 'Results/',
-                              f'{CASE}_LOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
+                              f'{CASE}_LOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_flat_codebook_results.hdf5')
     except OSError as e:
         print(e)
         print("Saving to root folder instead")
         if "NLOS" in channel_settings["scenarios"][0]:
             # helpers.dump_pickle(data_agent, '', f'{CASE}_NLOS_{RESULT_NAME}_results.pickle')
-            helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_NLOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_flat_codebook_results.hdf5')
         else:
             # helpers.dump_pickle(data_agent, '', f'{CASE}_LOS_{RESULT_NAME}_results.pickle')
-            helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_results.hdf5')
+            helpers.dump_hdf5(data_reward, '', f'{CASE}_LOS_{RESULT_NAME}_{eps}_{alpha}_{gamma}_{weight}_flat_codebook_results.hdf5')

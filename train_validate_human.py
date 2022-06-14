@@ -46,6 +46,14 @@ if __name__ == "__main__":
     fc = channel_settings["fc"]  # Center frequency
     P_t = channel_settings["P_t"]  # Transmission power
     lambda_ = 3e8 / fc  # Wave length
+    # P_n = 0  # Power of the noise
+
+    # Boltzmann constant
+    k = 1.380649 * 10 ** (-23)
+    # Power of the noise from [SOURCE]. extra 10 added to match P_t
+    P_n_db = 10 * np.log10(k * 290 * 400 * 10 ** 6 / 0.001) + 10
+    P_n_db += 10*np.log10(9/0.001)  # Add additional noise from noise factor (9dB) to see how well it performs.
+    P_n = 10**(P_n_db/10)
 
     # ----------- Reinforcement Learning Parameters -----------
 
@@ -145,21 +153,21 @@ if __name__ == "__main__":
     data = defaultdict(lambda: 0)
 
     # Threshold = 0.0006  # This works very well
-    Threshold = 0.0005  # This works worse than 0.0006
-    Thresholds = np.arange(15, 25) * 10 ** -5
+    Threshold = 0.0002  # This works better than 0.0006
+    # Thresholds = np.arange(15, 25) * 10 ** -5
     thrs_idx = 0
     for episode in tqdm(range(Episodes), desc="Episodes"):
 
-        if episode == 0:
-            pass
-        else:
-            if episode % 200 == 0:
-                data[Thresholds[thrs_idx]] = 10 * np.log10(
-                    R_log[episode - 200:episode] / R_max_log[episode - 200:episode])
-                if thrs_idx < len(Thresholds) - 1:
-                    thrs_idx += 1
-                else:
-                    pass
+        # if episode == 0:
+        #     pass
+        # else:
+        #     if episode % 200 == 0:
+        #         data[Thresholds[thrs_idx]] = 10 * np.log10(
+        #             R_log[episode - 200:episode] / R_max_log[episode - 200:episode])
+        #         if thrs_idx < len(Thresholds) - 1:
+        #             thrs_idx += 1
+        #         else:
+        #             pass
 
         # Choose data
         path_idx = np.random.randint(0, M)
@@ -189,9 +197,10 @@ if __name__ == "__main__":
                 action = tuple([0, 0])
 
             # Get reward from performing action
-            R, R_noiseless, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr[0], beam_nr[1])
+            R, R_noiseless, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr[0], beam_nr[1], P_n)
 
-            if R < Thresholds[thrs_idx]:
+            if R < Threshold:
+            # if R < Thresholds[thrs_idx]:
                 STAY = False
             else:
                 STAY = True
@@ -207,27 +216,27 @@ if __name__ == "__main__":
 
             previous_beam_nr = beam_nr
 
-    data[Thresholds[thrs_idx]] = 10 * np.log10(R_log[episode - 200:episode] / R_max_log[episode - 200:episode])
+    # data[Thresholds[thrs_idx]] = 10 * np.log10(R_log[episode - 200:episode] / R_max_log[episode - 200:episode])
 
     # %%
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    import matplotlib.ticker as plticker
-
-    fig, ax = plt.subplots()
-
-    for key, value in data.items():
-        sns.ecdfplot(value.flatten(), label=f'Threshold = {round(key, 7)}, avg = {round(np.mean(value), 3)}')
-
-    plt.axvline(-6, linestyle='--', color='black', label='-6 dB')
-    plt.axvline(-3, linestyle='-.', color='black', label='-3 dB')
-    plt.title('E-CDF, Heuristic')
-    loc = plticker.MultipleLocator(base=0.05)  # this locator puts ticks at regular intervals
-    ax.yaxis.set_major_locator(loc)
-    ax.yaxis.tick_right()
-    plt.xlabel('Misalignment in dB')
-    plt.legend()
-    plt.show()
+    # import matplotlib.pyplot as plt
+    # import seaborn as sns
+    # import matplotlib.ticker as plticker
+    #
+    # fig, ax = plt.subplots()
+    #
+    # for key, value in data.items():
+    #     sns.ecdfplot(value.flatten(), label=f'Threshold = {round(key, 7)}, avg = {round(np.mean(value), 3)}')
+    #
+    # plt.axvline(-6, linestyle='--', color='black', label='-6 dB')
+    # plt.axvline(-3, linestyle='-.', color='black', label='-3 dB')
+    # plt.title('E-CDF, Heuristic')
+    # loc = plticker.MultipleLocator(base=0.05)  # this locator puts ticks at regular intervals
+    # ax.yaxis.set_major_locator(loc)
+    # ax.yaxis.tick_right()
+    # plt.xlabel('Misalignment in dB')
+    # plt.legend()
+    # plt.show()
 
     # %% Save pickle and hdf5
     data_reward = {

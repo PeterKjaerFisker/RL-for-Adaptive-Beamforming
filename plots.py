@@ -7,6 +7,7 @@
 # %% Imports
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import matplotlib.ticker as plticker
 import operator as o
 import os
 
@@ -94,17 +95,20 @@ def ECDF(save, data, sections):
     data_len = data.shape[0]
     section_size = int(np.floor(data_len/sections))
     
-    plt.title("x-dB Mis-alignment probability - ECDF")
+
     fig, ax = plt.subplots()
     ax.yaxis.tick_right()
-    plt.axvline(-7, linestyle='--', color='black', label='-7 dB')
+    plt.axvline(-6, linestyle='--', color='black', label='-6 dB')
     plt.axvline(-3, linestyle='-.', color='black', label='-3 dB')
+    plt.title("x-dB Mis-alignment probability - ECDF")
     for i in range(sections):
 
         data_section = data[i*section_size:(i+1)*section_size, :].flatten()
         sns.ecdfplot(data_section, label=f'{i*section_size} - {(i+1)*section_size}')
 
     plt.legend()
+    loc = plticker.MultipleLocator(base=0.05)  # this locator puts ticks at regular intervals
+    ax.yaxis.set_major_locator(loc)
     plt.xlabel('Misalignment in dB')
     plt.ylabel("Probability")
     if save == True:
