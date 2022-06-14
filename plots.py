@@ -17,7 +17,7 @@ import numpy as np
 
 # %% Functions
 
-def barplot(save, data_arrays, span):
+def barplot(save, data_arrays, span, labels):
     '''
     Create a barchart for data across different categories with
     multiple conditions for each category.
@@ -32,17 +32,37 @@ def barplot(save, data_arrays, span):
     
     for dataset in range(N):
         xvals = data_arrays[dataset]
-        bar = plt.bar(ind+width*dataset, xvals, width)
+        bar = plt.bar(ind+width*dataset, xvals, width, label=labels[dataset])
+        
     
     
-    plt.xticks(ind+width,span, rotation = 30)
-    plt.title("Average misalignment for different action histories")
-    plt.xlabel("Episode range [-,-]")
-    plt.ylabel("Average absolute misalignment [dB]")
+    
+    plt.xticks(ind+width, span)
+    axes = plt.gca()
+    y_min, y_max = axes.get_ylim()
+
+    if len(span) > 6:
+        x_offset = 1-(2*(1/(N+1)))+width
+        
+        plt.vlines(1+x_offset,0,y_max, colors='black', linestyles = 'dashed', label = 'Codepage seperator')
+        plt.vlines(5+x_offset,0,y_max, colors='black', linestyles = 'dashed')
+        
+        plt.xlabel("Codeword number")
+    else:
+        plt.xlabel("Action")
+        
+    if len(span) > 14:
+        plt.vlines(13+x_offset,0,y_max, colors='black', linestyles = 'dashed')
+        
+    
+    # plt.title("Average misalignment for different action histories")
+    plt.ylabel("Relative frequency")
+    plt.legend()
     
     if save == True:
         plt.savefig("Figures/Barplot.pdf")
     plt.show()
+    
 
 def stability(save, data, average_window):
     """
@@ -224,7 +244,7 @@ def positions(save, pos_log, r_lim):
 
     """
     fig, ax = plt.subplots()
-    ax.set_title("Random Walk")
+    # ax.set_title("Mobility traces")pos
     ax.set_ylabel("Distance from transmitter [m]")
     ax.set_xlabel("Distance from transmitter [m]")
     ax.add_patch(plt.Circle((0, 0), r_lim, color='r', alpha=0.1))
@@ -235,8 +255,8 @@ def positions(save, pos_log, r_lim):
     ax.set_xlim([-r_lim, r_lim])
     ax.set_ylim([-r_lim, r_lim])
     ax.plot(0, 0, 'X', label="Transmitter")
-    if len(pos_log) < 10:
-        plt.legend()
+    # if len(pos_log) < 10:
+        # plt.legend()
 
     ax.set_aspect('equal', adjustable='box')
 
