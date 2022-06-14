@@ -46,6 +46,7 @@ Hyper = False
 
 average_variance = False
 
+
 # Legend_list=['Adaptive: w = 15','Constant: ε = 0.005','Reference','Decaying: w = 300']
 # Legend_list=['Reference','Adaptive: w = 10','Constant: ε = 0.01','Decaying: w = 300']
 # Legend_list=['Reference','Constant: ε = 0.001','Constant: ε = 0.01','Constant: ε = 0.005']
@@ -69,6 +70,7 @@ Legend_list = ['LOS Car','NLOS Car','LOS Pedestrian','NLOS Pedestrian']
 # Legend_list = ['Adaptive: w = 0.3','Adaptive: w = 1','Adaptive: w = 10','Adaptive: w = 15']
 # ['ε = ','α = ','γ = ','w = ']
 color_list = ['tab:blue','tab:orange','tab:green','tab:red']
+
 
 dim1 = len(bulk_data)
 dim2 = len(span)
@@ -96,6 +98,16 @@ for test_idx, test in enumerate(nt.natsorted(bulk_data.keys())):
         R_log_db = 10 * np.log10(bulk_data[f'{test}/R_log'])
         R_max_log_db = 10 * np.log10(bulk_data[f'{test}/R_max'])
         
+    elif Val_stat == 1:
+        R_log_db = 10 * np.log10(bulk_data[f'{test}/Training/R_log'])
+        R_max_log_db = 10 * np.log10(bulk_data[f'{test}/Training/R_max'])
+
+    elif Val_stat > 2:
+        # CHANGE IF TRAINING DATA SHOULD BE PLOTTED
+
+        R_log_db = 10 * np.log10(bulk_data[f'{test}/R_log'])
+        R_max_log_db = 10 * np.log10(bulk_data[f'{test}/R_max'])
+
     elif Val_stat == 1:
         R_log_db = 10 * np.log10(bulk_data[f'{test}/Training/R_log'])
         R_max_log_db = 10 * np.log10(bulk_data[f'{test}/Training/R_max'])
@@ -219,6 +231,7 @@ if not average_variance:
     lgd = plt.legend(bbox_to_anchor=(1, 0.5), loc="center left")
 # lgd = plt.legend()
 
+
 plt.xticks(range(len(span)), span, rotation=20)
 plt.xlabel("Episode range [-,-]")
 plt.ylabel("Average absolute misalignment [dB]")
@@ -227,6 +240,7 @@ plt.grid(True, axis='x')
 
 if Save:
     plt.savefig("Figures/Performance_.pdf", bbox_extra_artists=(lgd,), bbox_inches='tight') # Saves the figure
+
 
 plt.show()
 

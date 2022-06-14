@@ -22,50 +22,67 @@ else:
     # DATA_NAME = "pedestrian_LOS_SARSA_TTFT_2-0-1-8-2-32_7000_10000_SARSA_TFFT_0-2-0-0-2-32_7000_10000_validated_0.01_0.01_0.6_0.0"
     # DATA_NAME = "pedestrian_LOS_SARSA_TTFT_2-0-1-8-4-64_7000_10000_SARSA_TFFT_0-2-0-0-4-64_7000_10000_validated_0.01_0.01_0.6_0.0"
     DATA_NAME = "car_urban_LOS_SARSA_TTFT_2-0-1-8-2-32_7000_10000_SARSA_TFFT_0-2-0-0-2-32_7000_10000_0.0_0.01_0.0_10000.0_results"
+    DATA_NAME_2 = "car_urban_NLOS_SARSA_TTFT_2-0-1-8-2-32_7000_10000_SARSA_TFFT_0-2-0-0-2-32_7000_10000_0.0_0.01_0.0_10000.0_results"
+    # DATA_NAME_3 = "pedestrian_LOS_SARSA_SarsaNoiseFactorS_2-2-1-8-2-32_7000_10000_0.0_0.01_0.7_15000.0_results"
+
 
 # %% Load results
 data_reward = h5py.File(f'Results/ECDFs/plot/{DATA_NAME}.hdf5', 'r+')
-# data_reward = h5py.File(f'Results/Centralized_Agent_Sweeps/{DATA_NAME}_results.hdf5', 'r+')
 # data_reward = data_reward['Training']
 # data_reward = data_reward['Validation']
 R_log_db = data_reward['R_log']
 R_max_log_db = data_reward['R_max']
-R_min_log_db = data_reward['R_min']
-R_mean_log_db = data_reward['R_mean']
+
+data_reward_2 = h5py.File(f'Results/ECDFs/plot/{DATA_NAME_2}.hdf5', 'r+')
+# data_reward_2 = data_reward_2['Training']
+# data_reward_2 = data_reward_2['Validation']
+R_log_db_2 = data_reward_2['R_log']
+R_max_log_db_2 = data_reward_2['R_max']
+
+# data_reward_3 = h5py.File(f'Results/ECDFs/plot/{DATA_NAME_3}.hdf5', 'r+')
+# # data_reward_3 = data_reward_3['Training']
+# # data_reward_3 = data_reward_3['Validation']
+# R_log_db_3 = data_reward_3['R_log']
+# R_max_log_db_3 = data_reward_3['R_max']
+
+
 
 Save = False
 
 # %% PLOT
-print("Starts plotting")
+print("Starts calculating")
 
 # Calculate differences
 R_log_db = 10*np.log10(R_log_db)
 R_max_log_db = 10*np.log10(R_max_log_db)
-R_min_log_db = 10*np.log10(R_min_log_db)
-R_mean_log_db = 10*np.log10(R_mean_log_db)
-
-
 Misalignment_log_dB = R_log_db - R_max_log_db
-Meanalignment_log_dB = R_mean_log_db - R_max_log_db
-Minalignment_log_dB = R_min_log_db - R_max_log_db
 
+# Calculate differences
+R_log_db_2 = 10*np.log10(R_log_db_2)
+R_max_log_db_2 = 10*np.log10(R_max_log_db_2)
+Misalignment_log_dB_2 = R_log_db_2 - R_max_log_db_2
 
-# plots.ECDF(Save, Misalignment_log_dB, 1)
-# plots.ECDF(Save, Misalignment_log_dB[0:1000], 1)
-# plots.ECDF(Save, Misalignment_log_dB[9900:10000], 1)
-# fig, ax = plt.subplots()
-# sns.ecdfplot(Misalignment_log_dB[9000:10000].flatten(), label='9000-9999')
-# # sns.ecdfplot(multi_mis[9000:10000].flatten(), label='9000-9999 Standard State')
+# # Calculate differences
+# R_log_db_3 = 10*np.log10(R_log_db_3)
+# R_max_log_db_3 = 10*np.log10(R_max_log_db_3)
+# Misalignment_log_dB_3 = R_log_db_3 - R_max_log_db_3
+
+print("Starts plotting")
+fig, ax = plt.subplots()
+sns.ecdfplot(Misalignment_log_dB[9000:10000].flatten(), label='LOS Car')
+sns.ecdfplot(Misalignment_log_dB_2[9000:10000].flatten(), label='NLOS Car')
+# sns.ecdfplot(Misalignment_log_dB_3[9000:10000].flatten(), label='Sarsa: Noise factor')
+# sns.ecdfplot(Misalignment_log_dB_3[9000:10000].flatten(), label='Sarsa')
 # sns.ecdfplot(Misalignment_log_dB[0:1000].flatten(), label='0-999')
-# plt.axvline(-6, linestyle='--', color='black', label='-6 dB')
-# plt.axvline(-3, linestyle='-.', color='black', label='-3 dB')
-# plt.title('E-CDF, Simple - Car urban LOS')
-# loc = plticker.MultipleLocator(base=0.05)  # this locator puts ticks at regular intervals
-# ax.yaxis.set_major_locator(loc)
-# ax.yaxis.tick_right()
-# plt.xlabel('Misalignment in dB')
-# plt.legend()
-# plt.show()
+plt.axvline(-6, linestyle='--', color='black', label='-6 dB')
+plt.axvline(-3, linestyle='-.', color='black', label='-3 dB')
+# plt.title('E-CDF, Heuristic - Pedestrian LOS')
+loc = plticker.MultipleLocator(base=0.05)  # this locator puts ticks at regular intervals
+ax.yaxis.set_major_locator(loc)
+ax.yaxis.tick_right()
+plt.xlabel('Misalignment in dB')
+plt.legend()
+plt.show()
 
 # %%
 # plots.Relative_reward(Save,
@@ -76,13 +93,13 @@ Minalignment_log_dB = R_min_log_db - R_max_log_db
 # plots.stability(Save, R_log_db, 50)
 
 # Code for plotting specific episode
-start = 9970
-stop = 9971
-start2 = 3130
-
-plots.mean_reward(Save, R_max_log_db[start:stop][:, start2:3200], R_mean_log_db[start:stop][:, start2:3200], R_min_log_db[start:stop][:, start2:3200], R_log_db[start:stop][:, start2:3200],
-                  ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
-                  db=True)
+# start = 9950
+# stop = 9951
+# start2 = 0
+#
+# plots.mean_reward(Save, R_max_log_db[start:stop][:, start2:], R_mean_log_db[start:stop][:, start2:], R_min_log_db[start:stop][:, start2:], R_log_db[start:stop][:, start2:],
+#                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",
+#                   db=True)
 
 # plots.mean_reward(Save, R_max_log_db, R_mean_log_db, R_min_log_db, R_log_db,
 #                   ["R_max", "R_mean", "R_min", "R"], "Mean Rewards db",

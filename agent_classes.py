@@ -132,25 +132,29 @@ class MultiAgent:
                         action_space[beam_nr_Right],  # Right
                         action_space[beam_nr_Left]]  # Left
 
-        # Check if current layer is between the bottom and top layers
-        if current_layer != 1 and current_layer != Nlayers:
-            beam_nr_list.append(action_space[int(np.floor((current_beam_nr - 2) / 2))])  # Down
-            beam_nr_list.append(
-                action_space[int((current_beam_nr * 2) + 3)])  # TODO Up Right TODO måske byt om så ting er i rækkefølge
-            beam_nr_list.append(action_space[int((current_beam_nr * 2) + 2)])  # Up Left
+        if Nlayers > 1:
+            # Check if current layer is between the bottom and top layers
+            if current_layer != 1 and current_layer != Nlayers:
+                beam_nr_list.append(action_space[int(np.floor((current_beam_nr - 2) / 2))])  # Down
+                beam_nr_list.append(
+                    action_space[
+                        int((current_beam_nr * 2) + 3)])  # TODO Up Right TODO måske byt om så ting er i rækkefølge
+                beam_nr_list.append(action_space[int((current_beam_nr * 2) + 2)])  # Up Left
 
-            action_list = [0, 1, 2, 3, 4, 5]
+                action_list = [0, 1, 2, 3, 4, 5]
 
-        elif current_layer != 1:  # Check if on bottom layer
-            beam_nr_list.append(action_space[int(np.floor((current_beam_nr - 2) / 2))])  # Down
+            elif current_layer != 1:  # Check if on bottom layer
+                beam_nr_list.append(action_space[int(np.floor((current_beam_nr - 2) / 2))])  # Down
 
-            action_list = [0, 1, 2, 3]
+                action_list = [0, 1, 2, 3]
 
-        else:  # Check if on uppermost layer
-            beam_nr_list.append(action_space[int((current_beam_nr * 2) + 3)])  # Up Right
-            beam_nr_list.append(action_space[int((current_beam_nr * 2) + 2)])  # Up Left
+            else:  # Check if on uppermost layer
+                beam_nr_list.append(action_space[int((current_beam_nr * 2) + 3)])  # Up Right
+                beam_nr_list.append(action_space[int((current_beam_nr * 2) + 2)])  # Up Left
 
-            action_list = [0, 1, 2, 4, 5]
+                action_list = [0, 1, 2, 4, 5]
+        else:
+            action_list = [0, 1, 2]
 
         return beam_nr_list, action_list
 
@@ -504,25 +508,29 @@ class Agent:
                         action_space[beam_nr_Right],  # Right
                         action_space[beam_nr_Left]]  # Left
 
-        # Check if current layer is between the bottom and top layers
-        if current_layer != 1 and current_layer != Nlayers:
-            beam_nr_list.append(action_space[int(np.floor((current_beam_nr - 2) / 2))])  # Down
-            beam_nr_list.append(
-                action_space[int((current_beam_nr * 2) + 3)])  # TODO Up Right TODO måske byt om så ting er i rækkefølge
-            beam_nr_list.append(action_space[int((current_beam_nr * 2) + 2)])  # Up Left
+        if Nlayers > 1:
+            # Check if current layer is between the bottom and top layers
+            if current_layer != 1 and current_layer != Nlayers:
+                beam_nr_list.append(action_space[int(np.floor((current_beam_nr - 2) / 2))])  # Down
+                beam_nr_list.append(
+                    action_space[
+                        int((current_beam_nr * 2) + 3)])  # TODO Up Right TODO måske byt om så ting er i rækkefølge
+                beam_nr_list.append(action_space[int((current_beam_nr * 2) + 2)])  # Up Left
 
-            action_list = [0, 1, 2, 3, 4, 5]
+                action_list = [0, 1, 2, 3, 4, 5]
 
-        elif current_layer != 1:  # Check if on bottom layer
-            beam_nr_list.append(action_space[int(np.floor((current_beam_nr - 2) / 2))])  # Down
+            elif current_layer != 1:  # Check if on bottom layer
+                beam_nr_list.append(action_space[int(np.floor((current_beam_nr - 2) / 2))])  # Down
 
-            action_list = [0, 1, 2, 3]
+                action_list = [0, 1, 2, 3]
 
-        else:  # Check if on uppermost layer
-            beam_nr_list.append(action_space[int((current_beam_nr * 2) + 3)])  # Up Right
-            beam_nr_list.append(action_space[int((current_beam_nr * 2) + 2)])  # Up Left
+            else:  # Check if on uppermost layer
+                beam_nr_list.append(action_space[int((current_beam_nr * 2) + 3)])  # Up Right
+                beam_nr_list.append(action_space[int((current_beam_nr * 2) + 2)])  # Up Left
 
-            action_list = [0, 1, 2, 4, 5]
+                action_list = [0, 1, 2, 4, 5]
+        else:
+            action_list = [0, 1, 2]
 
         return beam_nr_list, action_list
 

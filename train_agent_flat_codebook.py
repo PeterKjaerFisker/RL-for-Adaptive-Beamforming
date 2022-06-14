@@ -24,8 +24,8 @@ if len(cmd_input) > 1:
     gamma = float(sys.argv[5])
     weight = float(sys.argv[6])
 else:
-    CHANNEL_SETTINGS = "pedestrian_LOS_16_users_20000_steps"
-    AGENT_SETTINGS = "Q-LEARNING_TFFF_2-2-0-0-0-0_7000_10000"
+    CHANNEL_SETTINGS = "pedestrian_LOS_2_users_20000_steps_01"
+    AGENT_SETTINGS = "SARSA_TTFT_2-2-1-8-2-32_7000_10000"
     eps = 0.01
     alpha = 0.01
     gamma = 0.6
@@ -54,13 +54,13 @@ if __name__ == "__main__":
     fc = channel_settings["fc"]  # Center frequency
     P_t = channel_settings["P_t"]  # Transmission power
     lambda_ = 3e8 / fc  # Wave length
-    # P_n = 0  # Power of the noise
-    # Boltzmann constant
-    k = 1.380649 * 10 ** (-23)
-    # Power of the noise from [SOURCE]. extra 10 added to match P_t
-    P_n_db = 10 * np.log10(k * 290 * 400 * 10 ** 6 / 0.001) + 10
-    P_n_db += 10*np.log10(9/0.001)  # Add additional noise from noise factor (9dB) to see how well it performs.
-    P_n = 10**(P_n_db/10)
+    P_n = 0  # Power of the noise
+    # # Boltzmann constant
+    # k = 1.380649 * 10 ** (-23)
+    # # Power of the noise from [SOURCE]. extra 10 added to match P_t
+    # P_n_db = 10 * np.log10(k * 290 * 400 * 10 ** 6 / 0.001) + 10
+    # P_n_db += 10*np.log10(9/0.001)  # Add additional noise from noise factor (9dB) to see how well it performs.
+    # P_n = 10**(P_n_db/10)
 
 
     # ----------- Reinforcement Learning Parameters -----------
@@ -216,12 +216,12 @@ if __name__ == "__main__":
         # TODO dette skal ikke blot være beams men én beam og et antal tidligere "retninger"
 
         if n_actions_r > 0:
-            State_tmp = [[tuple([x]) for x in np.random.randint(0, Nbeam_tot_r, n_actions_r)]]
+            State_tmp = [[tuple([x]) for x in np.random.randint((2 ** Nlr) - 1, Nbeam_tot_r, n_actions_r)]]
         else:
             State_tmp = [list("N/A")]
 
         if n_actions_t > 0:
-            State_tmp.append([tuple([x]) for x in np.random.randint(0, Nbeam_tot_t, n_actions_t)])
+            State_tmp.append([tuple([x]) for x in np.random.randint((2 ** Nlt) - 1, Nbeam_tot_t, n_actions_t)])
         else:
             State_tmp.append(["N/A"])
 
@@ -245,8 +245,8 @@ if __name__ == "__main__":
         # Initiate the action
         previous_beam_nr, previous_action = Agent.e_greedy_adj(helpers.state_to_index(State.state),
                                                                tuple([State.state[0][-1][0], State.state[1][-1][0]]),
-                                                               Nlr,
-                                                               Nlt)
+                                                               Nlr=1,
+                                                               Nlt=1)
 
         previous_state = State.state
 
@@ -268,7 +268,7 @@ if __name__ == "__main__":
 
 
             # TODO måske ændre sidste output til "limiting factors"
-            beam_nr, action = Agent.e_greedy_adj(helpers.state_to_index(State.state), previous_beam_nr, Nlr, Nlt)
+            beam_nr, action = Agent.e_greedy_adj(helpers.state_to_index(State.state), previous_beam_nr, Nlr=1, Nlt=1)
 
             # Get reward from performing action
             R, R_noiseless, R_max, R_min, R_mean = Env.take_action(path_idx, n + data_idx, beam_nr[0], beam_nr[1], P_n)
@@ -284,7 +284,7 @@ if __name__ == "__main__":
 
             elif METHOD == "Q-LEARNING":
                 greedy_beam, greedy_action = Agent.greedy_adj(helpers.state_to_index(State.state), previous_beam_nr,
-                                                              Nlr, Nlt)
+                                                              Nlr=1, Nlt=1)
 
                 TD_error = Agent.update_TD(helpers.state_to_index(previous_state),
                                            previous_action,
